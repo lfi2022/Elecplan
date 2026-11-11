@@ -5,6 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { textPdf } from "./pdf.js";
+import { generateKeyPairSync, sign } from "node:crypto";
 test("parcours API : installation, RBAC, fichiers, révisions, recherche, sauvegarde et restauration", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "electroplan-api-"));
   process.env.DATA_DIR = dir;
@@ -310,6 +311,7 @@ test("parcours API : installation, RBAC, fichiers, révisions, recherche, sauveg
       adminCsrf = csrf;
     await login("reader@example.test");
     assert.equal((await request("GET", "/documents")).json().total, 1);
+    assert.equal((await request("GET", "/dashboard")).json().documents, 1);
     assert.equal((await request("GET", "/locations")).json().length, 7);
     await request("GET", `/documents/${secretDoc.id}`, undefined, 404);
     await request("GET", `/locations/${otherSite.id}/qr`, undefined, 404);
@@ -318,6 +320,48 @@ test("parcours API : installation, RBAC, fichiers, révisions, recherche, sauveg
     await request("GET", "/audit", undefined, 403);
     cookie = adminCookie;
     csrf = adminCsrf;
+    await request("PUT", "/admin/settings", {
+      organization: "Installation de test",
+      supportEmail: "support@example.test",
+    });
+    assert.equal(
+      (await request("GET", "/auth/me")).json().organization,
+      "Installation de test",
+    );
+    const installationId = (await request("GET", "/admin")).json()
+      .installationId;
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    process.env.LICENSE_PUBLIC_KEY_FILE = path.join(dir, "public.pem");
+    await writeFile(
+      process.env.LICENSE_PUBLIC_KEY_FILE,
+      publicKey.export({ format: "pem", type: "spki" }),
+    );
+    const payload = Buffer.from(
+      JSON.stringify({
+        installationId,
+        customer: "Client test",
+        edition: "Professionnel",
+        expiresAt: null,
+      }),
+    );
+    const licence = {
+      payload: payload.toString("base64"),
+      signature: sign(null, payload, privateKey).toString("base64"),
+    };
+    await request(
+      "POST",
+      "/admin/license",
+      { ...licence, signature: Buffer.alloc(64).toString("base64") },
+      400,
+    );
+    assert.equal(
+      (await request("POST", "/admin/license", licence)).json().edition,
+      "Professionnel",
+    );
+    assert.equal(
+      (await request("GET", "/auth/me")).json().license.customer,
+      "Client test",
+    );
     const backup = (await request("POST", "/admin/backups")).json();
     await request("PUT", `/documents/${doc.id}`, {
       ...docInput,
@@ -348,6 +392,12 @@ test("parcours API : installation, RBAC, fichiers, révisions, recherche, sauveg
     await request("DELETE", `/locations/${site.id}`, undefined, 409);
     await request("DELETE", `/documents/${doc.id}`);
     await request("GET", `/documents/${doc.id}`, undefined, 404);
+    await request("POST", "/auth/password", {
+      current: "administrator-password",
+      password: "new-administrator-password",
+    });
+    await request("GET", "/auth/me", undefined, 401);
+    await login("admin@example.test", "new-administrator-password");
     await request("POST", "/auth/logout");
     await request("GET", "/auth/me", undefined, 401);
   } finally {

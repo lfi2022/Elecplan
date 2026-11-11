@@ -26,6 +26,7 @@ import {
 import { storeFile, removeFile } from "./storage.js";
 import { verifyLicense } from "./license.js";
 import { createBackup, listBackups, restoreBackup } from "./backup.js";
+z.config(z.locales.fr());
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -137,7 +138,14 @@ export async function buildApp(
       },
     },
   });
-  await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  await app.register(rateLimit, {
+    max: 300,
+    timeWindow: "1 minute",
+    errorResponseBuilder: () => ({
+      statusCode: 429,
+      error: "Trop de tentatives. Réessayez ultérieurement.",
+    }),
+  });
   await app.register(multipart, {
     limits: { fileSize: config.maxFile, files: 1, fields: 5 },
   });
@@ -211,7 +219,12 @@ export async function buildApp(
     return reply.code(code).send({
       error:
         code < 500
-          ? err.message
+          ? (
+              {
+                413: "Fichier ou requête trop volumineux.",
+                415: "Type de contenu non accepté.",
+              } as Record<number, string>
+            )[code] || err.message
           : "Erreur interne. Consultez le journal du serveur.",
     });
   });
