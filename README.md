@@ -13,6 +13,8 @@ Gestion autonome des plans électriques et du patrimoine technique, en français
 - Recherche multicritère et texte des PDF indexé dans SQLite FTS5 : mots/préfixes, accents normalisés. La recherche porte sur toutes les révisions conservées. Extraction limitée aux 1 000 premières pages et à 2 millions de caractères ; pas d’OCR des scans.
 - QR codes PNG des fiches du patrimoine. Les liens exigent la connexion au réseau et les droits d’accès habituels.
 - Comptes administrateur, éditeur, lecteur, permissions supplémentaires granulaires et liste explicite des sites autorisés.
+- Clients : coordonnées, code, préfixe documentaire et rattachement des sites ; références séquentielles générées automatiquement à la création, par exemple `ACME-ELEC-00001`.
+- Recherche du patrimoine par nom, référence, description, client et type, sans sensibilité aux accents ; les parents des résultats restent visibles dans l’arborescence.
 - Audit des connexions et opérations ; administration serveur, organisation, stockage, sauvegardes cohérentes et restauration.
 - Activation locale de licences Ed25519 liées à l’installation, avec édition, client et expiration vérifiés côté serveur.
 
@@ -74,6 +76,20 @@ Les cookies sont HttpOnly/SameSite=Strict, valables huit heures. Les mutations a
 Le service tourne sous le compte système non privilégié `electroplan`, avec umask 0077, protection du système de fichiers et redémarrage sur échec. Un seul processus utilise une installation. Le verrou est partagé avec les commandes CLI et les migrations.
 
 ## Exploitation
+
+### Clients et références documentaires
+
+1. Un administrateur crée le client dans **Clients**, avec un code (`ACME`) et un préfixe unique (`ACME-ELEC`).
+2. Dans **Patrimoine**, rattacher un ou plusieurs sites à ce client, en création ou en modification du site.
+3. Lorsqu’un document est créé dans ce site ou l’un de ses bâtiments, locaux ou équipements, la référence est attribuée côté serveur : `ACME-ELEC-00001`, `ACME-ELEC-00002`, etc. Le compteur est commun aux sites du même client et fait partie des sauvegardes.
+
+Le compteur et la création de la fiche sont enregistrés dans une même transaction SQLite. Les références libres déjà présentes sont évitées ; un numéro n’est pas réutilisé après suppression normale d’un document. Le préfixe est verrouillé dès la première référence générée. La référence d’un document client n’est plus modifiable ; le rattachement d’un site ne peut plus changer lorsqu’il contient des références client.
+
+Les documents antérieurs conservent exactement leurs références et restent des références historiques, sans modification automatique lors du rattachement du site. Les sites sans client continuent à utiliser une référence libre, requise et contrôlée contre les doublons à la création. La désactivation d’un client conserve ses données et interdit les nouvelles fiches sur ses sites ; les documents existants restent consultables et modifiables.
+
+La gestion des clients est réservée aux administrateurs. Les autres utilisateurs voient uniquement les identifiants et préfixes des clients de leurs sites autorisés, sans coordonnées privées ni compteurs globaux. Les droits d’accès aux documents restent déterminés par le site.
+
+Dans **Patrimoine**, saisir plusieurs mots dans **Rechercher dans le patrimoine**, puis éventuellement choisir un type d’élément. La recherche porte uniquement sur les éléments accessibles à l’utilisateur ; les branches parentes restent visibles pour situer chaque résultat.
 
 ```bash
 sudo systemctl start electroplan

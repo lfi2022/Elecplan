@@ -8,7 +8,7 @@ Les vérifications ci-dessous ont été exécutées sur le code livré. Elles d�
 | --- | --- |
 | TypeScript frontend et backend | `npm run check` réussi en environnement Windows et Linux |
 | Compilation de production | Client Prisma, backend Node et frontend Vite compilés sans erreur |
-| Tests Node | Quatre tests, comprenant des parcours API avec bases temporaires, sécurité, licences et récupération |
+| Tests Node | Six tests, comprenant des parcours API avec bases temporaires, sécurité, licences, clients, recherche du patrimoine et récupération |
 | API | Installation initiale et refus de reconfiguration, authentification, CSRF et origine, hiérarchie complète, parents invalides, métadonnées, associations d’équipements, imports, versions, restauration et téléchargement |
 | Droits | Lecteur limité à un site ; refus de lecture d’un autre site et de son QR code ; refus d’écriture et d’administration ; révocation des sessions |
 | Documents | Fichier avec signature invalide refusé ; PNG importé et téléchargé à l’identique ; PDF textuel généré, extrait et trouvé par son préfixe dans FTS5 ; import DWG/DXF par signatures ; révision dupliquée refusée |
@@ -18,6 +18,8 @@ Les vérifications ci-dessous ont été exécutées sur le code livré. Elles d�
 | Cryptographie | Mots de passe salés et vérification ; signature Ed25519 valide, falsifiée, expirée et destinée à une autre installation |
 | Navigateur Chromium | Première configuration, connexion, création de site, QR, fiche, import, aperçu, téléchargement, édition, recherche, thème sombre et affichage mobile 390 px ; aucune erreur JavaScript observée |
 | Lecteur PDF/images | Second parcours navigateur : dossiers imbriqués, PDF de deux pages rendu sur canvas avec pixels contrôlés, changement de page, zoom, rotation, sélection de révision image, navigation vers un autre fichier, panneau gauche/droite et lecture mobile. Toute requête hors de l’origine locale est bloquée durant ce test. |
+| Clients et références | Préfixes normalisés et uniques, rattachement au site et héritage par bâtiment, créations simultanées sans doublon, saut des références historiques déjà utilisées, compteur non réutilisé après suppression, préfixe et référence verrouillés, client désactivé et filtrage des clients selon les sites autorisés. Parcours navigateur de création du client jusqu’à une référence automatique. |
+| Recherche du patrimoine | Recherche multi-mots sans accents, référence, description, client, filtre par type, parents conservés, aucun résultat et réinitialisation ; vérifications unitaires et navigateur. |
 | Dépendances | `npm audit --audit-level=moderate` : aucune vulnérabilité connue signalée au moment du contrôle |
 
 Les tests navigateur produisent `artifacts/electroplan-desktop.png` et `artifacts/electroplan-mobile.png`. Les données de test ne sont pas initialisées dans une installation de production.
@@ -31,6 +33,7 @@ Les tests navigateur produisent `artifacts/electroplan-desktop.png` et `artifact
 - Exécution GitHub Actions sur Ubuntu 24.04 avec **systemd réel** : installation, démarrage du service, réponse `/api/health`, arrêt, sauvegarde et réinstallation réussis. [Exécution de référence](https://github.com/lfi2022/Elecplan/actions/runs/43005324010).
 - Le script de vérification inclut également le démarrage direct du programme installé et le chargement du frontend quand systemd n’est pas PID 1. L’environnement Docker de vérification coupe le réseau pendant cette phase.
 - Un parcours supplémentaire sur le programme installé vérifie, réseau coupé, la première configuration, la connexion, le patrimoine, l’import et la recherche d’un PDF, puis une sauvegarde et sa restauration. Le processus applicatif s’exécute sous le compte `electroplan`.
+- Migration clients exécutée sur la base locale existante après sauvegarde : comparaison avant/après des identifiants et références documentaires, clés et empreintes des fichiers et entrées de l’index PDF, sans modification de ces données.
 
 La première exécution CI a mis en évidence une interrogation du port avant sa disponibilité. Le test attend maintenant la santé HTTP avec un délai borné avant de continuer.
 

@@ -9,6 +9,7 @@ import { generateKeyPairSync, sign } from "node:crypto";
 test("parcours API : installation, RBAC, fichiers, révisions, recherche, sauvegarde et restauration", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "electroplan-api-"));
   process.env.DATA_DIR = dir;
+  process.env.PUBLIC_URL = "http://localhost:3000";
   process.env.DATABASE_URL = `file:${path.join(dir, "electroplan.db").replaceAll("\\", "/")}`;
   process.env.SETUP_TOKEN = "test-setup-token-of-at-least-24-characters";
   const migration = spawnSync(
@@ -91,7 +92,7 @@ test("parcours API : installation, RBAC, fichiers, révisions, recherche, sauveg
     );
     await request("GET", "/locations", undefined, 401, false);
     await login("admin@example.test");
-    await request('GET','/does-not-exist',undefined,404);
+    await request("GET", "/does-not-exist", undefined, 404);
     const badCsrf = await app.inject({
       method: "POST",
       url: "/api/locations",

@@ -6,7 +6,17 @@ import React, {
   type ReactNode,
 } from "react";
 import { createRoot } from "react-dom/client";
-import { api, setCsrf, formatDate, bytes, labels, type Location } from "./api";
+import {
+  api,
+  setCsrf,
+  formatDate,
+  bytes,
+  labels,
+  type Location,
+  type Client,
+} from "./api";
+import { Clients } from "./Clients";
+import { searchPatrimony } from "./patrimony";
 import "./style.css";
 const DocumentReader = React.lazy(() =>
   import("./DocumentReader").then((module) => ({
@@ -134,6 +144,7 @@ function App() {
     [loading, setLoading] = useState(true),
     [page, setPage] = useState("dashboard"),
     [locations, setLocations] = useState<Location[]>([]),
+    [clients, setClients] = useState<Client[]>([]),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [theme, setTheme] = useState(localStorage.getItem("theme") || "light"),
@@ -156,6 +167,7 @@ function App() {
           setCsrf(c.csrf);
           setContext(c);
           setLocations(await api("/locations"));
+          setClients(await api("/clients"));
           if (initialLocation) setPage("locations");
         } catch {
           setContext(null);
@@ -171,6 +183,10 @@ function App() {
     void load();
   }, []);
   useEffect(() => {
+    if (context)
+      api<Client[]>("/clients")
+        .then(setClients)
+        .catch((e) => setError(e.message));
     if (context)
       api<Location[]>("/locations")
         .then(setLocations)
@@ -288,6 +304,7 @@ function App() {
     dashboard: "Vue d’ensemble",
     locations: "Patrimoine",
     documents: "Bibliothèque documentaire",
+    clients: "Clients",
     audit: "Journal d’audit",
     users: "Utilisateurs",
     admin: "Administration",
@@ -313,6 +330,7 @@ function App() {
             ...(can("audit:read") ? [["audit", "≡", "Journal d’audit"]] : []),
             ...(context.user.role === "ADMIN"
               ? [
+                  ["clients", "◇", "Clients"],
                   ["users", "♙", "Utilisateurs"],
                   ["admin", "⚙", "Administration"],
                 ]
@@ -422,6 +440,7 @@ function App() {
             <Locations
               key={refresh}
               locations={locations}
+              clients={clients}
               selected={locationId}
               select={setLocationId}
               canWrite={can("locations:write")}
@@ -441,6 +460,7 @@ function App() {
                 key={`${selectedDoc}-${refresh}`}
                 id={selectedDoc}
                 locations={locations}
+                clients={clients}
                 can={can}
                 back={() => setSelectedDoc(null)}
                 notify={notify}
@@ -451,6 +471,7 @@ function App() {
                 key={refresh}
                 locations={locations}
                 initialLocation={locationId}
+                clients={clients}
                 canWrite={can("documents:write")}
                 canDownload={can("documents:download")}
                 open={setSelectedDoc}
@@ -458,6 +479,14 @@ function App() {
                 onError={handleError}
               />
             ))}
+          {page === "clients" && (
+            <Clients
+              key={refresh}
+              locations={locations}
+              notify={notify}
+              onError={handleError}
+            />
+          )}
           {page === "audit" && <Audit onError={handleError} />}
           {page === "users" && (
             <Users
@@ -700,6 +729,8 @@ const actionLabel = (s: string) =>
       "settings.update": "Paramètres modifiés",
       "license.activate": "Licence activée",
       "password.change": "Mot de passe changé",
+      "client.create": "Client créé",
+      "client.update": "Client modifié",
     }) as Record<string, string>
   )[s] || s;
 function Status({ value }: { value: string }) {
@@ -728,6 +759,7 @@ function locationPath(l: Location, locations: Location[]): string {
 }
 function Locations({
   locations,
+  clients,
   selected,
   select,
   canWrite,
@@ -737,6 +769,7 @@ function Locations({
   openDocuments,
 }: Feedback & {
   locations: Location[];
+  clients: Client[];
   selected: string;
   select: (id: string) => void;
   canWrite: boolean;
@@ -746,14 +779,24 @@ function Locations({
   const [modal, setModal] = useState(false),
     [editing, setEditing] = useState(false),
     [kind, setKind] = useState("BUILDING"),
-    [qr, setQr] = useState(false);
+    [qr, setQr] = useState(false),
+    [query, setQuery] = useState(""),
+    [kindFilter, setKindFilter] = useState("");
+  const { matches, visible } = searchPatrimony(
+      locations,
+      clients,
+      query,
+      kindFilter,
+    ),
+    filtering = !!query.trim() || !!kindFilter;
   const current = locations.find((l) => l.id === selected),
     roots = locations.filter((l) => !l.parentId);
   function tree(l: Location, depth = 0): ReactNode {
+    if (!visible.has(l.id)) return null;
     return (
       <React.Fragment key={l.id}>
         <button
-          className={`tree-item ${selected === l.id ? "selected" : ""}`}
+          className={`tree-item ${selected === l.id ? "selected" : ""} ${filtering && matches.has(l.id) ? "search-match" : ""}`}
           style={{ paddingLeft: 16 + depth * 18 }}
           onClick={() => select(l.id)}
         >
@@ -791,7 +834,57 @@ function Locations({
             <h2>Arborescence</h2>
             <span className="pill">{roots.length} sites</span>
           </div>
-          {roots.length ? (
+          <div className="patrimony-search">
+            <Field label="Rechercher dans le patrimoine">
+              <input
+                placeholder="Nom, référence, description, client…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </Field>
+            <Field label="Type d’élément">
+              <select
+                value={kindFilter}
+                onChange={(e) => setKindFilter(e.target.value)}
+              >
+                <option value="">Tous les types</option>
+                {[
+                  "SITE",
+                  "BUILDING",
+                  "FLOOR",
+                  "ZONE",
+                  "ROOM",
+                  "PANEL",
+                  "EQUIPMENT",
+                ].map((kind) => (
+                  <option key={kind} value={kind}>
+                    {labels[kind]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {filtering && (
+              <div className="button-row">
+                <span role="status">
+                  {matches.size} résultat{matches.size === 1 ? "" : "s"}
+                </span>
+                <button
+                  className="text-button"
+                  onClick={() => {
+                    setQuery("");
+                    setKindFilter("");
+                  }}
+                >
+                  Effacer la recherche
+                </button>
+              </div>
+            )}
+          </div>
+          {filtering && !matches.size ? (
+            <Empty>
+              Aucun élément correspondant. Modifiez votre recherche.
+            </Empty>
+          ) : roots.length ? (
             roots.map((l) => tree(l))
           ) : (
             <Empty>Créez votre premier site pour commencer.</Empty>
@@ -806,6 +899,14 @@ function Locations({
               <dl>
                 <dt>Référence</dt>
                 <dd>{current.reference || "Non renseignée"}</dd>
+                <dt>Client du site</dt>
+                <dd>
+                  {clients.find(
+                    (c) =>
+                      c.id ===
+                      locations.find((l) => l.id === current.siteId)?.clientId,
+                  )?.name || "Aucun client rattaché"}
+                </dd>
                 <dt>Description</dt>
                 <dd>{current.description || "Aucune description"}</dd>
                 <dt>Identifiant</dt>
@@ -875,7 +976,18 @@ function Locations({
                 const result = await api(
                   editing ? `/locations/${current!.id}` : "/locations",
                   editing ? "PATCH" : "POST",
-                  editing ? f : { ...f, parentId: f.parentId || null },
+                  editing
+                    ? {
+                        ...f,
+                        ...("clientId" in f
+                          ? { clientId: f.clientId || null }
+                          : {}),
+                      }
+                    : {
+                        ...f,
+                        parentId: f.parentId || null,
+                        clientId: f.clientId || null,
+                      },
                 );
                 select(result.id);
                 setModal(false);
@@ -900,6 +1012,30 @@ function Locations({
                 maxLength={100}
               />
             </Field>
+            {admin &&
+              ((editing && current?.kind === "SITE") ||
+                (!editing && kind === "SITE")) && (
+                <Field label="Client du site">
+                  <select
+                    name="clientId"
+                    defaultValue={editing ? current?.clientId || "" : ""}
+                  >
+                    <option value="">Sans client · références libres</option>
+                    {clients
+                      .filter((c) => c.active || c.id === current?.clientId)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} · {c.prefix}
+                        </option>
+                      ))}
+                  </select>
+                  <small>
+                    Les nouveaux documents héritent du client du site. Les
+                    anciennes références sont conservées. Le rattachement est
+                    verrouillé après la première référence client.
+                  </small>
+                </Field>
+              )}
             {!editing && (
               <>
                 <Field label="Type">
@@ -968,14 +1104,24 @@ function Locations({
 }
 function DocumentForm({
   locations,
+  clients,
   initial,
   onSubmit,
 }: {
   locations: Location[];
+  clients: Client[];
   initial?: any;
   onSubmit: (data: any) => Promise<void>;
 }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false),
+    [locationId, setLocationId] = useState(initial?.locationId || ""),
+    [reference, setReference] = useState(initial?.reference || "");
+  const chosenLocation = locations.find((l) => l.id === locationId),
+    site = locations.find((l) => l.id === chosenLocation?.siteId),
+    client = clients.find(
+      (c) => c.id === (initial ? initial.clientId : site?.clientId),
+    ),
+    managed = initial ? !!initial.clientId : !!client;
   return (
     <form
       onSubmit={async (e) => {
@@ -1009,13 +1155,32 @@ function DocumentForm({
         <Field label="Référence">
           <input
             name="reference"
-            defaultValue={initial?.reference}
-            required
+            value={managed && !initial ? "" : reference}
+            onChange={(e) => setReference(e.target.value)}
+            readOnly={managed}
+            placeholder={
+              managed
+                ? `${client?.prefix || initial?.client?.prefix}-… (automatique)`
+                : ""
+            }
+            required={!managed}
             maxLength={200}
           />
+          {managed && (
+            <small>
+              {initial
+                ? "Référence client conservée et verrouillée."
+                : `Attribuée automatiquement à l’enregistrement pour ${client?.name}.`}
+            </small>
+          )}
         </Field>
         <Field label="Localisation">
-          <select name="locationId" defaultValue={initial?.locationId} required>
+          <select
+            name="locationId"
+            value={locationId}
+            onChange={(e) => setLocationId(e.target.value)}
+            required
+          >
             <option value="">Choisir…</option>
             <LocationOptions locations={locations} />
           </select>
@@ -1107,6 +1272,7 @@ function DocumentForm({
 }
 function Documents({
   locations,
+  clients,
   initialLocation,
   canWrite,
   canDownload,
@@ -1115,6 +1281,7 @@ function Documents({
   onError,
 }: Feedback & {
   locations: Location[];
+  clients: Client[];
   initialLocation: string;
   canWrite: boolean;
   canDownload: boolean;
@@ -1181,6 +1348,18 @@ function Documents({
           />
         </div>
         <div className="filter-row">
+          <select
+            aria-label="Filtrer par client"
+            value={filters.clientId || ""}
+            onChange={(e) => filter("clientId", e.target.value)}
+          >
+            <option value="">Tous les clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <select
             aria-label="Filtrer par site"
             value={filters.siteId || ""}
@@ -1305,6 +1484,7 @@ function Documents({
                         <div>
                           <strong>{d.name}</strong>
                           <small>{d.reference}</small>
+                          {d.client && <small>{d.client.name}</small>}
                         </div>
                       </div>
                     </td>
@@ -1354,6 +1534,7 @@ function Documents({
         <Modal title="Nouvelle fiche de plan" close={() => setModal(false)}>
           <DocumentForm
             locations={locations}
+            clients={clients}
             onSubmit={async (data) => {
               try {
                 const result = await api("/documents", "POST", data);
@@ -1375,6 +1556,7 @@ function Documents({
 function DocumentDetail({
   id,
   locations,
+  clients,
   can,
   back,
   notify,
@@ -1382,6 +1564,7 @@ function DocumentDetail({
 }: Feedback & {
   id: string;
   locations: Location[];
+  clients: Client[];
   can: (p: string) => boolean;
   back: () => void;
 }) {
@@ -1456,6 +1639,10 @@ function DocumentDetail({
           {[
             ["Description", doc.description || "—"],
             ["Catégorie", doc.category],
+            [
+              "Client",
+              doc.client?.name || "Sans client · référence libre ou historique",
+            ],
             ["Installation", doc.installationType],
             ["Bâtiment", doc.buildingType || "—"],
             ["Date du plan", doc.planDate || "—"],
@@ -1615,6 +1802,7 @@ function DocumentDetail({
         <Modal title="Modifier la fiche" close={() => setEditing(false)}>
           <DocumentForm
             locations={locations}
+            clients={clients}
             initial={doc}
             onSubmit={async (data) => {
               try {

@@ -529,7 +529,8 @@ tr[tabindex]:hover {
   display: block;
   margin-bottom: 16px;
 }
-.field > label {
+.field > label,
+.field > span {
   display: block;
   font-size: 12px;
   font-weight: 600;
@@ -638,6 +639,20 @@ tr[tabindex]:hover {
 .tree-item.selected {
   background: var(--tint);
   color: var(--green);
+}
+.patrimony-search {
+  padding: 0 20px 18px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.patrimony-search .button-row {
+  font-size: 11px;
+  color: var(--muted);
+  justify-content: space-between;
+}
+.tree-item.search-match {
+  font-weight: 700;
+  box-shadow: inset 3px 0 var(--green);
 }
 dl {
   font-size: 12px;

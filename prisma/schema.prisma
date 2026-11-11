@@ -42,6 +42,8 @@ model Location {
   parent Location? @relation("Tree", fields: [parentId], references: [id], onDelete: Restrict)
   children Location[] @relation("Tree")
   siteId String
+  clientId String?
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Restrict)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users UserSite[]
@@ -53,6 +55,9 @@ model Document {
   id String @id @default(uuid())
   name String
   reference String
+  clientId String?
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  clientNumber Int?
   description String @default("")
   locationId String
   location Location @relation("DocumentLocation", fields: [locationId], references: [id], onDelete: Restrict)
@@ -69,6 +74,23 @@ model Document {
   versions Version[]
   equipment DocumentEquipment[]
   @@index([siteId])
+  @@unique([clientId, clientNumber])
+}
+model Client {
+  id String @id @default(uuid())
+  name String
+  code String @unique
+  prefix String @unique
+  email String @default("")
+  phone String @default("")
+  address String @default("")
+  description String @default("")
+  active Boolean @default(true)
+  nextNumber Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sites Location[]
+  documents Document[]
 }
 model DocumentEquipment {
   documentId String

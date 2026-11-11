@@ -26,6 +26,11 @@ import {
 import { storeFile, removeFile } from "./storage.js";
 import { verifyLicense } from "./license.js";
 import { createBackup, listBackups, restoreBackup } from "./backup.js";
+import {
+  registerClients,
+  assertClientForSite,
+  allocateReference,
+} from "./clients.js";
 z.config(z.locales.fr());
 
 declare module "fastify" {
@@ -75,12 +80,13 @@ const locationSchema = z
     reference: z.string().max(100).default(""),
     description: z.string().max(5000).default(""),
     parentId: idSchema.nullable().default(null),
+    clientId: idSchema.nullable().default(null),
   })
   .strict();
 const documentSchema = z
   .object({
     name: text,
-    reference: text,
+    reference: z.string().trim().max(200).default(""),
     description: z.string().max(5000).default(""),
     locationId: idSchema,
     category: text.default("Plan électrique"),
@@ -272,6 +278,7 @@ export async function buildApp(
       where: { id: idSchema.parse(id) },
       include: {
         location: true,
+        client: { select: { id: true, name: true, code: true, prefix: true } },
         equipment: { include: { equipment: true } },
         versions: {
           orderBy: { createdAt: "desc" },
@@ -321,6 +328,7 @@ export async function buildApp(
       }
     return { edition: "Standard", valid: true, customer: null };
   }
+  registerClients(app, db, { admin, requirePermission, audit });
   app.get("/api/health", async () => ({ status: "ok" }));
   app.get("/api/setup", async () => ({
     required: (await db.user.count()) === 0,
@@ -474,7 +482,13 @@ export async function buildApp(
     if (input.kind === "SITE") {
       if (input.parentId) fail(400, "Un site ne peut avoir de parent.");
       admin(req);
+      await assertClientForSite(db, input.clientId);
     } else {
+      if (input.clientId)
+        fail(
+          400,
+          "Le client se rattache au site, pas à un niveau intermédiaire.",
+        );
       if (!input.parentId) fail(400, "Parent requis.");
       const parent = await getLocation(req, input.parentId);
       const allowed: Record<string, string[]> = {
@@ -501,9 +515,25 @@ export async function buildApp(
         name: text,
         reference: z.string().max(100),
         description: z.string().max(5000),
+        clientId: idSchema.nullable().optional(),
       })
       .strict()
       .parse(req.body);
+    if (input.clientId !== undefined && input.clientId !== old.clientId) {
+      if (old.kind !== "SITE")
+        fail(400, "Le client se rattache uniquement au site.");
+      admin(req);
+      await assertClientForSite(db, input.clientId);
+      if (
+        await db.document.count({
+          where: { siteId: old.id, clientId: { not: null } },
+        })
+      )
+        fail(
+          409,
+          "Ce site contient déjà des références client : son rattachement est verrouillé.",
+        );
+    }
     const result = await db.location.update({
       where: { id: old.id },
       data: input,
@@ -534,6 +564,7 @@ export async function buildApp(
       .object({
         q: z.string().max(200).optional(),
         siteId: idSchema.optional(),
+        clientId: idSchema.optional(),
         locationId: idSchema.optional(),
         category: z.string().max(200).optional(),
         status: z.string().max(100).optional(),
@@ -558,6 +589,7 @@ export async function buildApp(
       AND: [
         siteFilter(req),
         q.siteId ? { siteId: q.siteId } : {},
+        q.clientId ? { clientId: q.clientId } : {},
         q.locationId ? { locationId: q.locationId } : {},
         q.category ? { category: q.category } : {},
         q.status ? { status: q.status } : {},
@@ -591,6 +623,9 @@ export async function buildApp(
         take: 30,
         include: {
           location: true,
+          client: {
+            select: { id: true, name: true, code: true, prefix: true },
+          },
           versions: {
             select: { id: true, revision: true, mime: true, size: true },
           },
@@ -635,13 +670,32 @@ export async function buildApp(
       req,
       documentSchema.parse(req.body),
     );
-    const result = await db.document.create({
-      data: {
-        ...data,
-        equipment: {
-          create: equipmentIds.map((equipmentId) => ({ equipmentId })),
+    const result = await db.$transaction(async (tx) => {
+      const site = await tx.location.findUniqueOrThrow({
+        where: { id: data.siteId },
+      });
+      if (!site.clientId && !data.reference)
+        fail(400, "Une référence est requise pour un site sans client.");
+      if (
+        !site.clientId &&
+        (await tx.document.findFirst({
+          where: { reference: data.reference },
+          select: { id: true },
+        }))
+      )
+        fail(409, "Cette référence documentaire existe déjà.");
+      const generated = site.clientId
+        ? await allocateReference(tx, site.clientId)
+        : {};
+      return tx.document.create({
+        data: {
+          ...data,
+          ...generated,
+          equipment: {
+            create: equipmentIds.map((equipmentId) => ({ equipmentId })),
+          },
         },
-      },
+      });
     });
     await audit(req, "document.create", result.id, result.siteId);
     return reply.code(201).send(result);
@@ -655,6 +709,20 @@ export async function buildApp(
     );
     if (data.siteId !== old.siteId)
       fail(400, "Déplacement intersites interdit.");
+    if (old.clientId && data.reference !== old.reference)
+      fail(
+        400,
+        "La référence client est générée automatiquement et ne peut pas être modifiée.",
+      );
+    if (!data.reference) fail(400, "La référence ne peut pas être vide.");
+    if (
+      data.reference !== old.reference &&
+      (await db.document.findFirst({
+        where: { reference: data.reference, id: { not: old.id } },
+        select: { id: true },
+      }))
+    )
+      fail(409, "Cette référence documentaire existe déjà.");
     const result = await db.document.update({
       where: { id: old.id },
       data: {

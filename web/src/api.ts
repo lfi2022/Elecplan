@@ -45,6 +45,20 @@ export type Location = {
   description: string;
   parentId: string | null;
   siteId: string;
+  clientId?: string | null;
+};
+export type Client = {
+  id: string;
+  name: string;
+  code: string;
+  prefix: string;
+  active: boolean;
+  email?: string;
+  phone?: string;
+  address?: string;
+  description?: string;
+  nextNumber?: number;
+  _count?: { sites: number; documents: number };
 };
 export const labels: Record<string, string> = {
   SITE: "Site",
