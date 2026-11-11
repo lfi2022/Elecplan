@@ -18,6 +18,9 @@ jobs:
       - run: npm audit --audit-level=moderate
       - run: bash scripts/build-deb.sh
       - run: sudo bash scripts/linux-smoke.sh artifacts/electroplan_1.0.0_amd64.deb
+      - name: Service diagnostics on failure
+        if: failure()
+        run: sudo journalctl -u electroplan -n 150 --no-pager
       - uses: actions/upload-artifact@v4
         with:
           name: electroplan-debian-amd64

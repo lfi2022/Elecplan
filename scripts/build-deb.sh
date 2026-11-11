@@ -10,6 +10,9 @@ version=$(node -p "require('./package.json').version")
 stage=$(mktemp -d)
 trap 'rm -rf -- "$stage"' EXIT
 mkdir -p "$stage/DEBIAN" "$stage/opt/electroplan" "$stage/lib/systemd/system" artifacts
+mkdir -p "$stage/usr/share/doc/electroplan"
+[ ! -f README.md ] || cp README.md "$stage/usr/share/doc/electroplan/"
+[ ! -d docs ] || cp -a docs "$stage/usr/share/doc/electroplan/"
 npm ci
 npm run check
 npm run build

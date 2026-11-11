@@ -8,7 +8,7 @@ test "$(stat -c %U /var/lib/electroplan)" = electroplan
 test "$(stat -c %a /etc/electroplan/electroplan.env)" = 640
 if [ -d /run/systemd/system ]; then
   systemctl is-active --quiet electroplan
-  curl --fail http://127.0.0.1:3000/api/health
+  curl --fail --retry 30 --retry-connrefused --retry-delay 1 http://127.0.0.1:3000/api/health
   systemctl stop electroplan
 fi
 runuser -u electroplan -- /bin/sh -c 'set -a; . /etc/electroplan/electroplan.env; set +a; cd /opt/electroplan; runtime/bin/node dist/server/cli.js backup'
