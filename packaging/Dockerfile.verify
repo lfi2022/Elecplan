@@ -4,6 +4,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends systemd && rm -
 WORKDIR /build
 COPY . .
 RUN bash scripts/build-deb.sh
-RUN bash scripts/linux-smoke.sh artifacts/electroplan_1.0.0_amd64.deb
+RUN --network=none bash scripts/linux-smoke.sh artifacts/electroplan_1.0.0_amd64.deb
 RUN systemd-analyze verify /lib/systemd/system/electroplan.service
 CMD ["bash", "-c", "cp artifacts/* /out/"]
