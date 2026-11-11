@@ -1,0 +1,37 @@
+#!/bin/sh
+set -eu
+if ! getent passwd electroplan >/dev/null; then
+  adduser --system --group --home /var/lib/electroplan --no-create-home electroplan
+fi
+install -d -o electroplan -g electroplan -m 0700 /var/lib/electroplan /var/lib/electroplan/files /var/lib/electroplan/backups
+install -d -o root -g electroplan -m 0750 /etc/electroplan
+if [ ! -f /etc/electroplan/electroplan.env ]; then
+  setup_token=$(/opt/electroplan/runtime/bin/node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+  umask 027
+  cat > /etc/electroplan/electroplan.env <<EOF
+DATA_DIR=/var/lib/electroplan
+DATABASE_URL=file:/var/lib/electroplan/electroplan.db
+HOST=127.0.0.1
+PORT=3000
+PUBLIC_URL=http://localhost:3000
+COOKIE_SECURE=false
+SETUP_TOKEN=$setup_token
+LICENSE_PUBLIC_KEY_FILE=/etc/electroplan/license-public.pem
+EOF
+fi
+chown root:electroplan /etc/electroplan/electroplan.env
+chmod 0640 /etc/electroplan/electroplan.env
+chown -R root:root /opt/electroplan
+chmod -R go-w /opt/electroplan
+# Save an existing installation before applying schema changes.
+if [ -s /var/lib/electroplan/electroplan.db ]; then
+  runuser -u electroplan -- /bin/sh -c 'set -a; . /etc/electroplan/electroplan.env; set +a; cd /opt/electroplan; exec runtime/bin/node dist/server/cli.js backup'
+fi
+runuser -u electroplan -- /bin/sh -c 'set -a; . /etc/electroplan/electroplan.env; set +a; cd /opt/electroplan; exec runtime/bin/node dist/scripts/migrate.js'
+if [ -d /run/systemd/system ]; then
+  systemctl daemon-reload
+  systemctl enable electroplan.service
+  systemctl restart electroplan.service
+fi
+echo 'ElectroPlan installé. Configurez PUBLIC_URL et HOST dans /etc/electroplan/electroplan.env.'
+echo 'Première configuration : lire SETUP_TOKEN dans ce fichier avec sudo.'

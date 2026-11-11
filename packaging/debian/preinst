@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+if [ "$1" = upgrade ] && [ -d /run/systemd/system ]; then
+  systemctl stop electroplan.service
+fi

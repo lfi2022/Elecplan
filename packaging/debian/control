@@ -1,0 +1,9 @@
+Package: electroplan
+Version: VERSION
+Section: web
+Priority: optional
+Architecture: amd64
+Maintainer: ElectroPlan <support@example.invalid>
+Depends: libc6 (>= 2.36), libssl3 | libssl3t64, libstdc++6, libgcc-s1, ca-certificates, adduser
+Description: Gestion autonome du patrimoine et des documents techniques
+ Application React/Fastify avec SQLite, fichiers locaux et service systemd.

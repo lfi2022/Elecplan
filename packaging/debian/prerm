@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+if [ -d /run/systemd/system ]; then
+  systemctl stop electroplan.service || true
+  if [ "$1" = remove ]; then systemctl disable electroplan.service || true; fi
+fi

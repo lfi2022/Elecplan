@@ -1,0 +1,28 @@
+[Unit]
+Description=ElectroPlan - documentation technique
+After=network.target
+
+[Service]
+Type=simple
+User=electroplan
+Group=electroplan
+WorkingDirectory=/opt/electroplan
+EnvironmentFile=/etc/electroplan/electroplan.env
+Environment=NODE_ENV=production
+ExecStartPre=/opt/electroplan/runtime/bin/node /opt/electroplan/dist/scripts/migrate.js
+ExecStart=/opt/electroplan/runtime/bin/node /opt/electroplan/dist/server/index.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=90
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/electroplan
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

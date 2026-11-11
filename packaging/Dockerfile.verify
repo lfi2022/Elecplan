@@ -1,0 +1,9 @@
+# Verification/build environment only. The installed application needs no Docker.
+FROM node:22-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends systemd && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+COPY . .
+RUN bash scripts/build-deb.sh
+RUN bash scripts/linux-smoke.sh artifacts/electroplan_1.0.0_amd64.deb
+RUN systemd-analyze verify /lib/systemd/system/electroplan.service
+CMD ["bash", "-c", "cp artifacts/* /out/"]

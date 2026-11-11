@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+if [ -d /run/systemd/system ]; then systemctl daemon-reload; fi
+# Data, configuration and the system account are deliberately preserved, even on purge.
