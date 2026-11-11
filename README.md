@@ -25,6 +25,10 @@ L’édition Standard fonctionne sans licence. Professionnel est activable par f
 
 Pour ouvrir le lecteur, choisir **Documents → Lecteur de plans**, ou **Prévisualiser** depuis une fiche. Déplier les dossiers du patrimoine puis sélectionner un fichier. **Dossiers à droite/gauche** déplace l’arborescence ; sa position est mémorisée dans le navigateur. Sur mobile, le panneau peut être masqué pour conserver toute la largeur de lecture. Le filtre du panneau porte sur les fichiers déjà chargés ; la recherche globale reste disponible dans la bibliothèque.
 
+Pour créer une fiche sans parcourir une longue liste, ouvrir un site, bâtiment ou local dans **Patrimoine**, puis choisir **Ajouter un document ici**. La localisation et son client automatique sont déjà renseignés. Depuis la bibliothèque, **Nouveau document** reprend également la localisation ou le site filtré. La fiche créée permet ensuite d’importer la première révision du fichier.
+
+Le champ de localisation utilise une recherche à partir de **trois caractères**, par nom, référence ou chemin complet, sans distinction d’accents. Vingt résultats au maximum sont affichés ; affiner la recherche si davantage correspondent. Choisir un résultat à la souris ou avec les flèches puis Entrée. Le chemin reste affiché et **Changer la localisation** permet une nouvelle recherche ; du texte saisi sans résultat sélectionné ne peut pas être enregistré comme localisation.
+
 Plateformes ciblées : **Debian 12/13 ou Ubuntu 24.04+, amd64**, systemd. Le paquet contient Node.js 22, le code compilé, les dépendances et les moteurs Prisma Linux. Il ne télécharge aucun module à l’installation. Les bibliothèques système déclarées dans le paquet doivent déjà être présentes, ou accessibles dans votre dépôt APT local.
 
 Récupérer le `.deb` et son SHA-256 dans les artefacts du workflow GitHub Actions, ou les produire avec les instructions de compilation ci-dessous.

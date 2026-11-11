@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { chooseLocation } from "../locationPicker";
 test("installation, patrimoine, import, consultation, révision, filtres et thème mobile", async ({
   page,
 }) => {
@@ -50,9 +51,7 @@ test("installation, patrimoine, import, consultation, révision, filtres et thè
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nom du document").fill("Plan de distribution");
   await dialog.getByLabel("Référence", { exact: true }).fill("ELEC-001");
-  await dialog
-    .getByLabel("Localisation", { exact: true })
-    .selectOption({ label: "Site · Site Bruxelles" });
+  await chooseLocation(dialog, "Site Bruxelles");
   await dialog
     .getByLabel("Tags (séparés par des virgules)")
     .fill("test, distribution");
@@ -79,7 +78,9 @@ test("installation, patrimoine, import, consultation, révision, filtres et thè
   await expect(
     page.getByRole("img", { name: "Plan de distribution" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Fermer le lecteur", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Fermer le lecteur", exact: true })
+    .click();
   const downloadPromise = page.waitForEvent("download");
   await page
     .getByRole("link", { name: "Télécharger la version en vigueur" })

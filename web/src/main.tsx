@@ -19,6 +19,7 @@ import { Clients } from "./Clients";
 import { searchPatrimony } from "./patrimony";
 import { type ElectricalPlanStage } from "../../shared/electricalPlans";
 import { ElectricalPlanStageBadge } from "./ElectricalPlanStage";
+import { LocationPicker } from "./LocationPicker";
 import {
   effectiveClient,
   descendantIds,
@@ -161,6 +162,7 @@ function App() {
   const initialLocation =
     new URLSearchParams(location.search).get("location") || "";
   const [locationId, setLocationId] = useState(initialLocation);
+  const [quickAddLocation, setQuickAddLocation] = useState<string | null>(null);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("theme", theme);
@@ -452,6 +454,11 @@ function App() {
               selected={locationId}
               select={setLocationId}
               canWrite={can("locations:write")}
+              canAddDocument={can("documents:write")}
+              addDocument={(id) => {
+                setLocationId(id);
+                setQuickAddLocation(id);
+              }}
               admin={context.user.role === "ADMIN"}
               notify={notify}
               onError={handleError}
@@ -494,6 +501,31 @@ function App() {
               notify={notify}
               onError={handleError}
             />
+          )}
+          {quickAddLocation && (
+            <Modal
+              title="Ajouter un document ici"
+              close={() => setQuickAddLocation(null)}
+            >
+              <DocumentForm
+                locations={locations}
+                clients={clients}
+                initialLocationId={quickAddLocation}
+                onSubmit={async (data) => {
+                  try {
+                    const document = await api("/documents", "POST", data);
+                    setQuickAddLocation(null);
+                    setSelectedDoc(document.id);
+                    setPage("documents");
+                    notify(
+                      "Fiche créée dans la localisation choisie. Ajoutez la première révision ci-dessous.",
+                    );
+                  } catch (error) {
+                    handleError(error);
+                  }
+                }}
+              />
+            </Modal>
           )}
           {page === "audit" && <Audit onError={handleError} />}
           {page === "users" && (
@@ -771,6 +803,8 @@ function Locations({
   selected,
   select,
   canWrite,
+  canAddDocument,
+  addDocument,
   admin,
   notify,
   onError,
@@ -781,6 +815,8 @@ function Locations({
   selected: string;
   select: (id: string) => void;
   canWrite: boolean;
+  canAddDocument: boolean;
+  addDocument: (id: string) => void;
   admin: boolean;
   openDocuments: (id: string) => void;
 }) {
@@ -924,6 +960,11 @@ function Locations({
                 <dd className="mono">{current.id}</dd>
               </dl>
               <div className="button-row">
+                {canAddDocument && (
+                  <Button onClick={() => addDocument(current.id)}>
+                    + Ajouter un document ici
+                  </Button>
+                )}
                 <Button onClick={() => openDocuments(current.id)}>
                   Voir les documents
                 </Button>
@@ -1151,15 +1192,19 @@ function DocumentForm({
   locations,
   clients,
   initial,
+  initialLocationId,
   onSubmit,
 }: {
   locations: Location[];
   clients: Client[];
   initial?: any;
+  initialLocationId?: string;
   onSubmit: (data: any) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false),
-    [locationId, setLocationId] = useState(initial?.locationId || ""),
+    [locationId, setLocationId] = useState(
+      initial?.locationId || initialLocationId || "",
+    ),
     [reference, setReference] = useState(initial?.reference || ""),
     [documentClient, setDocumentClient] = useState<string>(
       initial ? initial.clientId || "none" : "auto",
@@ -1235,17 +1280,11 @@ function DocumentForm({
             </small>
           )}
         </Field>
-        <Field label="Localisation">
-          <select
-            name="locationId"
-            value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
-            required
-          >
-            <option value="">Choisir…</option>
-            <LocationOptions locations={locations} />
-          </select>
-        </Field>
+        <LocationPicker
+          locations={locations}
+          value={locationId}
+          onChange={setLocationId}
+        />
         <Field label="Client du document">
           <select
             value={documentClient}
@@ -1654,6 +1693,9 @@ function Documents({
           <DocumentForm
             locations={locations}
             clients={clients}
+            initialLocationId={
+              filters.locationId || filters.siteId || initialLocation
+            }
             onSubmit={async (data) => {
               try {
                 const result = await api("/documents", "POST", data);

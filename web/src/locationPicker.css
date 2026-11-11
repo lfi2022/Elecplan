@@ -1,0 +1,73 @@
+.location-picker {
+  position: relative;
+}
+.location-picker-selection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--tint);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 12px;
+}
+.location-picker-selection > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.location-picker-selection strong {
+  font-size: 12px;
+}
+.location-picker-selection button {
+  font-size: 10px;
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+.location-picker-popup {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  box-shadow: 0 12px 30px #0002;
+  overflow: hidden;
+}
+.location-picker-popup ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 280px;
+  overflow: auto;
+}
+.location-picker-popup li {
+  padding: 11px 13px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.location-picker-popup li strong {
+  font-size: 12px;
+}
+.location-picker-popup li.active {
+  background: var(--tint);
+  color: var(--green);
+}
+.location-picker-popup p {
+  margin: 0;
+  padding: 10px 13px;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg);
+}
+@media (max-width: 600px) {
+  .location-picker-selection {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .location-picker-popup ul {
+    max-height: 220px;
+  }
+}

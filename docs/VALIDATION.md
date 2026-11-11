@@ -8,7 +8,7 @@ Les vérifications ci-dessous ont été exécutées sur le code livré. Elles d�
 | --- | --- |
 | TypeScript frontend et backend | `npm run check` réussi en environnement Windows et Linux |
 | Compilation de production | Client Prisma, backend Node et frontend Vite compilés sans erreur |
-| Tests Node | Huit tests, comprenant des parcours API avec bases temporaires, sécurité, licences, clients, édition hiérarchique, indication des dossiers électriques, recherche du patrimoine et récupération |
+| Tests Node | Neuf tests, comprenant des parcours API avec bases temporaires, sécurité, licences, clients, édition hiérarchique, identifiants automatiques, recherche du patrimoine et des localisations et récupération |
 | API | Installation initiale et refus de reconfiguration, authentification, CSRF et origine, hiérarchie complète, parents invalides, métadonnées, associations d’équipements, imports, versions, restauration et téléchargement |
 | Droits | Lecteur limité à un site ; refus de lecture d’un autre site et de son QR code ; refus d’écriture et d’administration ; révocation des sessions |
 | Documents | Fichier avec signature invalide refusé ; PNG importé et téléchargé à l’identique ; PDF textuel généré, extrait et trouvé par son préfixe dans FTS5 ; import DWG/DXF par signatures ; révision dupliquée refusée |
@@ -22,6 +22,7 @@ Les vérifications ci-dessous ont été exécutées sur le code livré. Elles d�
 | Édition du patrimoine | Nom, référence, description, type, parent et client éditables ; refus des cycles et associations invalides ; déplacement d’un sous-arbre et de ses documents entre sites, et refus d’un déplacement qui séparerait un document d’un équipement. Vérifications API et parcours navigateur de changement du client d’un bâtiment après création. |
 | Recherche du patrimoine | Recherche multi-mots sans accents, référence, description, client, filtre par type, parents conservés, aucun résultat et réinitialisation ; vérifications unitaires et navigateur. |
 | Provisoire / Définitif | Champ enregistré exclusivement sur le document ; valeurs invalides refusées ; absence du champ sur les clients et bâtiments ; deux documents d’un même bâtiment avec des indications différentes ; filtre documentaire et conservation de l’indication pendant la réaffectation/référence renouvelée. Parcours navigateur avec un document provisoire et un autre définitif. |
+| Ajout rapide et localisation | Quatrième parcours navigateur : création directement depuis un bâtiment, localisation et client persistés, édition avec recherche à trois caractères, maximum vingt résultats, recherche sans accents et par référence, choix au clavier et aucun résultat. Test unitaire de seuil, chemin complet et limitation des résultats. |
 | Dépendances | `npm audit --audit-level=moderate` : aucune vulnérabilité connue signalée au moment du contrôle |
 
 Les tests navigateur produisent `artifacts/electroplan-desktop.png` et `artifacts/electroplan-mobile.png`. Les données de test ne sont pas initialisées dans une installation de production.

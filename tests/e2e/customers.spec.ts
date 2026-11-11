@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { chooseLocation } from "../locationPicker";
 
 test("clients et patrimoine : création, rattachement, référence automatique et recherche hiérarchique", async ({
   page,
@@ -117,9 +118,7 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   await dialog
     .getByLabel("Document provisoire ou définitif")
     .selectOption("PROVISIONAL");
-  await dialog
-    .getByLabel("Localisation", { exact: true })
-    .selectOption(panel.id);
+  await chooseLocation(dialog, "Armoire", panel.id);
   await expect(dialog.getByLabel("Référence", { exact: true })).toHaveAttribute(
     "readonly",
     "",
@@ -175,9 +174,7 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   await dialog
     .getByLabel("Document provisoire ou définitif")
     .selectOption("FINAL");
-  await dialog
-    .getByLabel("Localisation", { exact: true })
-    .selectOption(panel.id);
+  await chooseLocation(dialog, "Armoire", panel.id);
   await dialog.getByRole("button", { name: "Enregistrer la fiche" }).click();
   await expect(
     page.getByText("SECOND-CLIENT-ELEC-00001", { exact: true }),
