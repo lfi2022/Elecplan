@@ -8,6 +8,11 @@ import React, {
 import { createRoot } from "react-dom/client";
 import { api, setCsrf, formatDate, bytes, labels, type Location } from "./api";
 import "./style.css";
+const DocumentReader = React.lazy(() =>
+  import("./DocumentReader").then((module) => ({
+    default: module.DocumentReader,
+  })),
+);
 type Account = {
   id: string;
   name: string;
@@ -447,6 +452,7 @@ function App() {
                 locations={locations}
                 initialLocation={locationId}
                 canWrite={can("documents:write")}
+                canDownload={can("documents:download")}
                 open={setSelectedDoc}
                 notify={notify}
                 onError={handleError}
@@ -1103,6 +1109,7 @@ function Documents({
   locations,
   initialLocation,
   canWrite,
+  canDownload,
   open,
   notify,
   onError,
@@ -1110,6 +1117,7 @@ function Documents({
   locations: Location[];
   initialLocation: string;
   canWrite: boolean;
+  canDownload: boolean;
   open: (id: string) => void;
 }) {
   const [data, setData] = useState<any>(null),
@@ -1117,7 +1125,8 @@ function Documents({
       locationId: initialLocation,
     }),
     [page, setPage] = useState(1),
-    [modal, setModal] = useState(false);
+    [modal, setModal] = useState(false),
+    [reader, setReader] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
@@ -1143,10 +1152,24 @@ function Documents({
     <>
       <div className="toolbar">
         <span>{data?.total || 0} documents</span>
-        {canWrite && (
-          <Button onClick={() => setModal(true)}>+ Nouveau document</Button>
-        )}
+        <div className="button-row">
+          <Button className="secondary" onClick={() => setReader(true)}>
+            Lecteur de plans
+          </Button>
+          {canWrite && (
+            <Button onClick={() => setModal(true)}>+ Nouveau document</Button>
+          )}
+        </div>
       </div>
+      {reader && (
+        <React.Suspense fallback={<p role="status">Chargement du lecteur…</p>}>
+          <DocumentReader
+            locations={locations}
+            canDownload={canDownload}
+            close={() => setReader(false)}
+          />
+        </React.Suspense>
+      )}
       <section className="card filters">
         <div className="search">
           <span>⌕</span>
@@ -1606,24 +1629,15 @@ function DocumentDetail({
         </Modal>
       )}
       {preview && (
-        <Modal
-          title={`${doc.name} · ${preview.revision}`}
-          close={() => setPreview(null)}
-        >
-          {preview.mime === "application/pdf" ? (
-            <iframe
-              title="Aperçu PDF"
-              className="preview"
-              src={`/api/documents/${id}/versions/${preview.id}/file?preview=1`}
-            />
-          ) : (
-            <img
-              className="image-preview"
-              alt={doc.name}
-              src={`/api/documents/${id}/versions/${preview.id}/file?preview=1`}
-            />
-          )}
-        </Modal>
+        <React.Suspense fallback={<p role="status">Chargement du lecteur…</p>}>
+          <DocumentReader
+            locations={locations}
+            initialDocumentId={id}
+            initialVersionId={preview.id}
+            canDownload={can("documents:download")}
+            close={() => setPreview(null)}
+          />
+        </React.Suspense>
       )}
     </>
   );

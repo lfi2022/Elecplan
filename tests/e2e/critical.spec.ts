@@ -79,7 +79,7 @@ test("installation, patrimoine, import, consultation, révision, filtres et thè
   await expect(
     page.getByRole("img", { name: "Plan de distribution" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Fermer", exact: true }).click();
+  await page.getByRole("button", { name: "Fermer le lecteur", exact: true }).click();
   const downloadPromise = page.waitForEvent("download");
   await page
     .getByRole("link", { name: "Télécharger la version en vigueur" })

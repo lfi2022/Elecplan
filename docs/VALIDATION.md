@@ -17,6 +17,7 @@ Les vérifications ci-dessous ont été exécutées sur le code livré. Elles d�
 | Récupération | Verrou CLI/service et simulation d’une restauration interrompue avec récupération au prochain démarrage |
 | Cryptographie | Mots de passe salés et vérification ; signature Ed25519 valide, falsifiée, expirée et destinée à une autre installation |
 | Navigateur Chromium | Première configuration, connexion, création de site, QR, fiche, import, aperçu, téléchargement, édition, recherche, thème sombre et affichage mobile 390 px ; aucune erreur JavaScript observée |
+| Lecteur PDF/images | Second parcours navigateur : dossiers imbriqués, PDF de deux pages rendu sur canvas avec pixels contrôlés, changement de page, zoom, rotation, sélection de révision image, navigation vers un autre fichier, panneau gauche/droite et lecture mobile. Toute requête hors de l’origine locale est bloquée durant ce test. |
 | Dépendances | `npm audit --audit-level=moderate` : aucune vulnérabilité connue signalée au moment du contrôle |
 
 Les tests navigateur produisent `artifacts/electroplan-desktop.png` et `artifacts/electroplan-mobile.png`. Les données de test ne sont pas initialisées dans une installation de production.

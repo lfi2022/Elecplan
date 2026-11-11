@@ -10,3 +10,4 @@ artifacts/
 *.deb
 secrets/
 private*.pem
+web/public/pdfjs/

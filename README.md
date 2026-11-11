@@ -8,6 +8,7 @@ Gestion autonome des plans électriques et du patrimoine technique, en français
 - Arborescence sites → bâtiments → étages → zones → locaux → tableaux → équipements ; certains niveaux intermédiaires sont facultatifs, avec contrôle des parents côté serveur.
 - Fiches documentaires, métadonnées, catégories libres, tags, date, statut, référence, équipements associés. Domaines Électricité, HVAC, Plomberie, Incendie et Réseaux informatiques.
 - Import PDF, PNG/JPEG, DWG/DXF ; téléchargement contrôlé et aperçu PDF/images. Stockage par UUID, empreinte SHA-256, limite de 50 Mo par fichier.
+- Lecteur PDF/images intégré : dossiers hiérarchiques à gauche ou à droite, document au centre, navigation entre fichiers et révisions, pages PDF, zoom, rotation et ajustement à la largeur. PDF.js et ses ressources sont servis localement, sans lecteur externe ni CDN.
 - Révisions immuables, auteur/date, historique et sélection/restauration de la version en vigueur.
 - Recherche multicritère et texte des PDF indexé dans SQLite FTS5 : mots/préfixes, accents normalisés. La recherche porte sur toutes les révisions conservées. Extraction limitée aux 1 000 premières pages et à 2 millions de caractères ; pas d’OCR des scans.
 - QR codes PNG des fiches du patrimoine. Les liens exigent la connexion au réseau et les droits d’accès habituels.
@@ -18,6 +19,8 @@ Gestion autonome des plans électriques et du patrimoine technique, en français
 L’édition Standard fonctionne sans licence. Professionnel est activable par fichier signé. Les fonctions décrites ci-dessus sont disponibles dans les deux éditions : cette version ne fixe pas de quotas commerciaux ni de restrictions payantes artificielles. La vérification et le point de décision d’édition sont centralisés dans `server/license.ts` et `licenseState()`.
 
 ## Installation native recommandée
+
+Pour ouvrir le lecteur, choisir **Documents → Lecteur de plans**, ou **Prévisualiser** depuis une fiche. Déplier les dossiers du patrimoine puis sélectionner un fichier. **Dossiers à droite/gauche** déplace l’arborescence ; sa position est mémorisée dans le navigateur. Sur mobile, le panneau peut être masqué pour conserver toute la largeur de lecture. Le filtre du panneau porte sur les fichiers déjà chargés ; la recherche globale reste disponible dans la bibliothèque.
 
 Plateformes ciblées : **Debian 12/13 ou Ubuntu 24.04+, amd64**, systemd. Le paquet contient Node.js 22, le code compilé, les dépendances et les moteurs Prisma Linux. Il ne télécharge aucun module à l’installation. Les bibliothèques système déclarées dans le paquet doivent déjà être présentes, ou accessibles dans votre dépôt APT local.
 
