@@ -7,7 +7,6 @@ import {
 } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { api, bytes, labels, type Location, type Client } from "./api";
-import { electricalPlanStageForFolder } from "../../shared/electricalPlans";
 import { ElectricalPlanStageBadge } from "./ElectricalPlanStage";
 import "./reader.css";
 
@@ -30,6 +29,8 @@ type Plan = {
   status: string;
   category: string;
   installationType: string;
+  electricalPlanStage?:
+    import("../../shared/electricalPlans").ElectricalPlanStage | null;
 };
 type Folder = {
   items: Plan[];
@@ -214,14 +215,6 @@ export function DocumentReader({
           <span>
             {location.name}
             <small>{labels[location.kind]}</small>
-            {["SITE", "BUILDING"].includes(location.kind) && (
-              <ElectricalPlanStageBadge
-                stage={
-                  electricalPlanStageForFolder(locations, clients, location.id)
-                    .stage
-                }
-              />
-            )}
           </span>
         </button>
         {opened && (
@@ -239,6 +232,11 @@ export function DocumentReader({
                   <span>
                     {item.name}
                     <small>{item.reference}</small>
+                    {item.installationType === "Électricité" && (
+                      <ElectricalPlanStageBadge
+                        stage={item.electricalPlanStage}
+                      />
+                    )}
                   </span>
                 </button>
               </li>
@@ -411,15 +409,7 @@ export function DocumentReader({
                 {doc.installationType === "Électricité" && (
                   <span>
                     Plans électriques :{" "}
-                    <ElectricalPlanStageBadge
-                      stage={
-                        electricalPlanStageForFolder(
-                          locations,
-                          clients,
-                          doc.locationId,
-                        ).stage
-                      }
-                    />
+                    <ElectricalPlanStageBadge stage={doc.electricalPlanStage} />
                   </span>
                 )}
                 <span>

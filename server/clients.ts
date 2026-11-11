@@ -1,7 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { PrismaClient, Prisma } from "@prisma/client";
 import { z } from "zod";
-import { electricalPlanStages } from "../shared/electricalPlans.js";
 
 function reject(statusCode: number, message: string): never {
   throw Object.assign(new Error(message), { statusCode });
@@ -20,13 +19,12 @@ const identifier = (max: number) =>
 const clientSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
-    code: identifier(20),
-    prefix: identifier(40),
+    code: identifier(20).optional(),
+    prefix: identifier(40).optional(),
     email: z.union([z.string().email().max(254), z.literal("")]).default(""),
     phone: z.string().max(50).default(""),
     address: z.string().max(1000).default(""),
     description: z.string().max(5000).default(""),
-    electricalPlanStage: z.enum(electricalPlanStages).nullable().optional(),
     active: z.boolean().default(true),
   })
   .strict();
@@ -66,14 +64,33 @@ export function registerClients(
         code: true,
         prefix: true,
         active: true,
-        electricalPlanStage: true,
       },
     });
   });
   app.post("/api/clients", async (req, reply) => {
     hooks.admin(req);
-    const input = clientSchema.parse(req.body);
-    const client = await db.client.create({ data: input });
+    const {
+      code: _code,
+      prefix: _prefix,
+      ...input
+    } = clientSchema.parse(req.body);
+    const client = await db.$transaction(async (tx) => {
+      let suffix = 1,
+        identifiers = clientIdentifiers(input.name, suffix);
+      while (
+        (await tx.client.findFirst({
+          where: {
+            OR: [{ code: identifiers.code }, { prefix: identifiers.prefix }],
+          },
+        })) ||
+        (await tx.referenceReservation.findFirst({
+          where: { reference: { startsWith: identifiers.prefix + "-" } },
+        }))
+      ) {
+        identifiers = clientIdentifiers(input.name, ++suffix);
+      }
+      return tx.client.create({ data: { ...input, ...identifiers } });
+    });
     await hooks.audit(req, "client.create", client.id);
     return reply.code(201).send(client);
   });
@@ -83,13 +100,25 @@ export function registerClients(
         .string()
         .uuid()
         .parse((req.params as { id: string }).id),
-      input = clientSchema.parse(req.body);
+      { code: _code, prefix: _prefix, ...input } = clientSchema.parse(req.body);
     const old = await db.client.findUnique({ where: { id } });
     if (!old) reject(404, "Client introuvable.");
     const client = await db.client.update({ where: { id }, data: input });
     await hooks.audit(req, "client.update", id);
     return client;
   });
+}
+export function clientIdentifiers(name: string, suffix = 1) {
+  let base = name
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (base.length < 2) base = base ? "CL-" + base : "CLIENT";
+  const end = suffix === 1 ? "" : `-${suffix}`;
+  const code = base.slice(0, 20 - end.length).replace(/-+$/g, "") + end;
+  return { code, prefix: `${code}-ELEC` };
 }
 
 export async function assertClientForSite(db: PrismaClient, id: string | null) {

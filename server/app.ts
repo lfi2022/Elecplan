@@ -89,7 +89,6 @@ const locationSchema = z
     parentId: idSchema.nullable().default(null),
     clientId: idSchema.nullable().default(null),
     inheritClient: z.boolean().default(true),
-    electricalPlanStage: z.enum(electricalPlanStages).nullable().optional(),
   })
   .strict();
 const documentSchema = z
@@ -116,6 +115,7 @@ const documentSchema = z
     status: z
       .enum(["Brouillon", "À valider", "En vigueur", "Archivé"])
       .default("Brouillon"),
+    electricalPlanStage: z.enum(electricalPlanStages).nullable().optional(),
     planDate: z.union([z.iso.date(), z.literal("")]).default(""),
     equipmentIds: z.array(idSchema).max(100).default([]),
   })
@@ -558,6 +558,7 @@ export async function buildApp(
         recursive: z.enum(["0", "1"]).default("1"),
         category: z.string().max(200).optional(),
         status: z.string().max(100).optional(),
+        electricalPlanStage: z.enum(electricalPlanStages).optional(),
         tag: z.string().max(50).optional(),
         installationType: z.string().max(100).optional(),
         buildingType: z.string().max(100).optional(),
@@ -597,6 +598,9 @@ export async function buildApp(
         locationIds ? { locationId: { in: locationIds } } : {},
         q.category ? { category: q.category } : {},
         q.status ? { status: q.status } : {},
+        q.electricalPlanStage
+          ? { electricalPlanStage: q.electricalPlanStage }
+          : {},
         q.installationType ? { installationType: q.installationType } : {},
         q.buildingType ? { buildingType: q.buildingType } : {},
         q.equipmentId

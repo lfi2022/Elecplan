@@ -10,7 +10,7 @@ export function ElectricalPlanStageBadge({
   return (
     <span
       className={`status electrical-plan-stage ${stage === "FINAL" ? "green" : stage === "PROVISIONAL" ? "amber" : "gray"}`}
-      title="Caractère du dossier de plans électriques"
+      title="Caractère du document : provisoire ou définitif"
     >
       {stage ? electricalPlanStageLabels[stage] : "Non renseigné"}
     </span>

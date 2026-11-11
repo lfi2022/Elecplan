@@ -7,7 +7,6 @@ import {
   locationKinds,
 } from "../shared/hierarchy.js";
 import { assertClientForSite } from "./clients.js";
-import { electricalPlanStages } from "../shared/electricalPlans.js";
 function fail(statusCode: number, message: string): never {
   throw Object.assign(new Error(message), { statusCode });
 }
@@ -20,7 +19,6 @@ const schema = z
     parentId: z.string().uuid().nullable().optional(),
     clientId: z.string().uuid().nullable().optional(),
     inheritClient: z.boolean().optional(),
-    electricalPlanStage: z.enum(electricalPlanStages).nullable().optional(),
   })
   .strict();
 export async function editLocation(
@@ -95,7 +93,6 @@ export async function editLocation(
         parentId,
         clientId,
         inheritClient,
-        electricalPlanStage: input.electricalPlanStage,
       },
     });
     if (siteId !== old.siteId) {

@@ -15,7 +15,7 @@ Gestion autonome des plans électriques et du patrimoine technique, en français
 - Comptes administrateur, éditeur, lecteur, permissions supplémentaires granulaires et liste explicite des sites autorisés.
 - Clients : coordonnées, code, préfixe documentaire et rattachement des sites ; références séquentielles générées automatiquement à la création, par exemple `ACME-ELEC-00001`.
 - Recherche du patrimoine par nom, référence, description, client et type, sans sensibilité aux accents ; les parents des résultats restent visibles dans l’arborescence.
-- Dossiers de plans électriques : indication Provisoire / Définitif sur les clients et bâtiments, affichée dans le patrimoine et le lecteur, avec héritage et indication explicite de la source.
+- Plans électriques : indication Provisoire / Définitif propre à chaque document, affichée dans la bibliothèque, la fiche et le lecteur, avec filtre dédié. Aucun héritage depuis le client ou le bâtiment.
 - Audit des connexions et opérations ; administration serveur, organisation, stockage, sauvegardes cohérentes et restauration.
 - Activation locale de licences Ed25519 liées à l’installation, avec édition, client et expiration vérifiés côté serveur.
 
@@ -80,11 +80,11 @@ Le service tourne sous le compte système non privilégié `electroplan`, avec u
 
 ### Clients et références documentaires
 
-1. Un administrateur crée le client dans **Clients**, avec un code (`ACME`) et un préfixe unique (`ACME-ELEC`).
+1. Un administrateur crée le client dans **Clients** en saisissant son nom et ses coordonnées. Le serveur génère automatiquement un code unique et son préfixe documentaire : par exemple `Atelier Dupont` → `ATELIER-DUPONT` et `ATELIER-DUPONT-ELEC`. Les accents sont normalisés et un suffixe numérique distingue les homonymes.
 2. Dans **Patrimoine → Modifier**, rattacher un site, un bâtiment ou tout autre élément à ce client. Choisir **Hériter du parent** pour reprendre le client du parent le plus proche, ou **Sans client** pour interrompre cet héritage.
 3. Lorsqu’un document est créé, le choix **Utiliser le client de la localisation** applique ce rattachement. Un client peut également être choisi explicitement sur la fiche. La référence est attribuée côté serveur : `ACME-ELEC-00001`, `ACME-ELEC-00002`, etc. Le compteur est commun aux éléments du même client et fait partie des sauvegardes.
 
-Le compteur, la réservation de référence et la création de la fiche sont enregistrés dans une même transaction SQLite. Les références déjà attribuées sont réservées même après suppression d’un document. Le préfixe du client et le rattachement d’un site ou bâtiment peuvent être modifiés après création ; les anciennes références ne sont jamais réécrites par ces modifications.
+Le compteur, la réservation de référence et la création de la fiche sont enregistrés dans une même transaction SQLite. Les références déjà attribuées sont réservées même après suppression d’un document. Le code et le préfixe client sont automatiques et restent stables après un renommage ; les valeurs et références existantes sont conservées. Les anciens champs API `code` et `prefix`, s’ils sont fournis par un ancien client, sont ignorés après validation : ils ne permettent pas d’imposer ou de changer les identifiants. Le rattachement d’un site ou bâtiment reste modifiable.
 
 La fiche documentaire permet de changer de client ou de cocher **Attribuer une nouvelle référence**. Une nouvelle référence est alors générée, et l’ancienne est conservée avec l’ancien client, la date et l’auteur dans **Historique des références**. Les fichiers et leurs révisions restent associés à la même fiche. La recherche textuelle retrouve aussi les anciennes références.
 
@@ -96,13 +96,13 @@ La gestion des clients et des rattachements dans le patrimoine est réservée au
 
 Dans **Patrimoine**, saisir plusieurs mots dans **Rechercher dans le patrimoine**, puis éventuellement choisir un type d’élément. La recherche porte uniquement sur les éléments accessibles à l’utilisateur ; les branches parentes restent visibles pour situer chaque résultat.
 
-### Dossiers électriques provisoires ou définitifs
+### Documents électriques provisoires ou définitifs
 
-Dans **Clients → Modifier**, renseigner **Plans électriques : provisoire ou définitif**. Cette indication est indépendante du statut Actif/Désactivé du client et du statut de validation des documents.
+Dans **Documents → Nouveau document** ou **Modifier la fiche**, renseigner **Document provisoire ou définitif**. Cette valeur appartient uniquement à ce document ; deux plans d’un même client et bâtiment peuvent avoir des indications différentes. Elle reste indépendante du statut de validation Brouillon / À valider / En vigueur / Archivé.
 
-Dans **Patrimoine → bâtiment → Modifier**, choisir **Provisoire**, **Définitif**, ou **Hériter du dossier parent ou du client**. Le dossier le plus proche ayant une indication explicite est prioritaire ; à défaut, l’indication du client applicable est utilisée. Les descendants sans indication propre suivent cette valeur. La fiche précise la source lorsqu’il s’agit d’un héritage.
+La bibliothèque propose un filtre Provisoire / Définitif. L’indication est affichée sur les lignes documentaires et dans le lecteur intégré. Aucun réglage Provisoire / Définitif ne figure sur les clients ou bâtiments.
 
-Les badges sont visibles dans la liste des clients, les dossiers du patrimoine, la fiche d’un document électrique et le lecteur intégré. Les dossiers existants restent **Non renseigné** tant qu’aucune indication propre ou héritée n’est disponible. Ce réglage ne réécrit pas les PDF/images et ne transforme pas automatiquement un document Brouillon en document En vigueur.
+Les documents existants restent **Non renseigné** jusqu’à une sélection explicite. Les anciens réglages de dossiers sont retirés et archivés dans les paramètres internes de migration, sans les recopier arbitrairement sur les documents. Le champ ne réécrit pas les PDF/images et ne modifie pas la validation du document.
 
 ```bash
 sudo systemctl start electroplan

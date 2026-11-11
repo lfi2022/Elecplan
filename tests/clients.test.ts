@@ -76,13 +76,20 @@ test("clients : références transactionnelles, héritage des sites, anciens doc
       },
       201,
     );
-    assert.equal(client.prefix, "ACME-ELEC");
-    await req(
+    assert.equal(client.prefix, "CLIENT-ACME-ELEC");
+    const duplicate = await req(
       "POST",
       "/clients",
-      { name: "Doublon", code: "autre", prefix: "ACME-ELEC" },
-      409,
+      { name: "Client Acme" },
+      201,
     );
+    assert.notEqual(duplicate.code, client.code);
+    assert.equal(duplicate.prefix, "CLIENT-ACME-2-ELEC");
+    const renamed = await req("PUT", `/clients/${client.id}`, {
+      name: "Acme renommé",
+    });
+    assert.equal(renamed.code, client.code);
+    assert.equal(renamed.prefix, client.prefix);
     await req(
       "POST",
       "/clients",
@@ -106,7 +113,7 @@ test("clients : références transactionnelles, héritage des sites, anciens doc
         "/documents",
         {
           name: "Référence historique",
-          reference: "ACME-ELEC-00001",
+          reference: "CLIENT-ACME-ELEC-00001",
           locationId: site.id,
         },
         201,
@@ -144,7 +151,7 @@ test("clients : références transactionnelles, héritage des sites, anciens doc
       },
       201,
     );
-    assert.equal(first.reference, "ACME-ELEC-00002");
+    assert.equal(first.reference, "CLIENT-ACME-ELEC-00002");
     assert.equal(first.clientId, client.id);
     const batch = await Promise.all(
       Array.from({ length: 6 }, (_, i) =>
@@ -163,7 +170,7 @@ test("clients : références transactionnelles, héritage des sites, anciens doc
     );
     assert.equal(
       (await req("GET", `/documents/${legacy.id}`)).reference,
-      "ACME-ELEC-00001",
+      "CLIENT-ACME-ELEC-00001",
     );
     assert.equal(
       (await req("GET", `/documents?clientId=${client.id}`)).total,
@@ -223,7 +230,7 @@ test("clients : références transactionnelles, héritage des sites, anciens doc
       { name: "Après suppression", locationId: building.id },
       201,
     );
-    assert.equal(afterDelete.reference, "ACME-ELEC-00009");
+    assert.equal(afterDelete.reference, "CLIENT-ACME-ELEC-00009");
     await req("PUT", `/clients/${client.id}`, {
       name: client.name,
       code: client.code,

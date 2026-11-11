@@ -33,26 +33,15 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   await page.getByRole("button", { name: "+ Nouveau client" }).click();
   let dialog = page.getByRole("dialog", { name: "Créer un client" });
   await dialog.getByLabel("Nom du client").fill("Client Atelier");
-  await dialog.getByLabel("Code client", { exact: true }).fill("atelier");
-  await dialog.getByLabel("Préfixe documentaire").fill("atl-elec");
-  await dialog
-    .getByLabel("Plans électriques : provisoire ou définitif")
-    .selectOption("PROVISIONAL");
   await dialog
     .getByLabel("E-mail", { exact: true })
     .fill("contact@atelier.test");
   await dialog.getByRole("button", { name: "Enregistrer le client" }).click();
   await expect(
     page.getByRole("cell", {
-      name: "ATL-ELEC-00001 Prochaine séquence : 00001",
+      name: "CLIENT-ATELIER-ELEC-00001 Prochaine séquence : 00001",
     }),
   ).toBeVisible();
-  await expect(
-    page
-      .getByRole("row")
-      .filter({ hasText: "Client Atelier" })
-      .locator(".electrical-plan-stage"),
-  ).toHaveText("Provisoire");
   await page.getByRole("button", { name: "▦ Patrimoine", exact: true }).click();
   await page
     .getByRole("button", { name: "+ Ajouter une localisation" })
@@ -61,7 +50,7 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   await dialog.getByLabel("Nom", { exact: true }).fill("Site Atelier");
   await dialog
     .getByLabel("Client du site")
-    .selectOption({ label: "Client Atelier · ATL-ELEC" });
+    .selectOption({ label: "Client Atelier · CLIENT-ATELIER-ELEC" });
   await dialog
     .getByRole("button", { name: "Enregistrer", exact: true })
     .click();
@@ -126,6 +115,9 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nom du document").fill("Plan automatique Atelier");
   await dialog
+    .getByLabel("Document provisoire ou définitif")
+    .selectOption("PROVISIONAL");
+  await dialog
     .getByLabel("Localisation", { exact: true })
     .selectOption(panel.id);
   await expect(dialog.getByLabel("Référence", { exact: true })).toHaveAttribute(
@@ -133,11 +125,13 @@ test("clients et patrimoine : création, rattachement, référence automatique e
     "",
   );
   await dialog.getByRole("button", { name: "Enregistrer la fiche" }).click();
-  await expect(page.getByText("ATL-ELEC-00001", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("CLIENT-ATELIER-ELEC-00001", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Modifier la fiche" }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Référence", { exact: true })).toHaveValue(
-    "ATL-ELEC-00001",
+    "CLIENT-ATELIER-ELEC-00001",
   );
   await expect(dialog.getByLabel("Référence", { exact: true })).toHaveAttribute(
     "readonly",
@@ -147,7 +141,9 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   await page.getByRole("button", { name: "◇ Clients", exact: true }).click();
   await page.getByRole("button", { name: "Modifier", exact: true }).click();
   dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Préfixe documentaire")).toBeEditable();
+  await expect(
+    dialog.locator("input[name=code],input[name=prefix]"),
+  ).toHaveCount(0);
   await dialog.getByRole("button", { name: "Fermer", exact: true }).click();
   await page.screenshot({
     path: "artifacts/electroplan-clients.png",
@@ -156,8 +152,6 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   await page.getByRole("button", { name: "+ Nouveau client" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nom du client").fill("Second client");
-  await dialog.getByLabel("Code client", { exact: true }).fill("SECOND");
-  await dialog.getByLabel("Préfixe documentaire").fill("SECOND");
   await dialog.getByRole("button", { name: "Enregistrer le client" }).click();
   await page.getByRole("button", { name: "▦ Patrimoine", exact: true }).click();
   await page.getByRole("button", { name: /Bâtiment Atelier/ }).click();
@@ -168,39 +162,57 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   await dialog.getByLabel("Référence", { exact: true }).fill("BAT-EDIT");
   await dialog
     .getByLabel("Client du site / bâtiment")
-    .selectOption({ label: "Second client · SECOND" });
-  await dialog
-    .getByLabel("Plans électriques : provisoire ou définitif")
-    .selectOption("FINAL");
+    .selectOption({ label: "Second client · SECOND-CLIENT-ELEC" });
   await dialog
     .getByRole("button", { name: "Enregistrer", exact: true })
     .click();
   await expect(page.getByText("Second client", { exact: true })).toBeVisible();
-  await expect(page.locator("dd .electrical-plan-stage")).toHaveText(
-    "Définitif",
-  );
+  await expect(page.locator("dd .electrical-plan-stage")).toHaveCount(0);
   await page.getByRole("button", { name: "▤ Documents", exact: true }).click();
   await page.getByRole("button", { name: "+ Nouveau document" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nom du document").fill("Plan sous nouveau client");
   await dialog
+    .getByLabel("Document provisoire ou définitif")
+    .selectOption("FINAL");
+  await dialog
     .getByLabel("Localisation", { exact: true })
     .selectOption(panel.id);
   await dialog.getByRole("button", { name: "Enregistrer la fiche" }).click();
-  await expect(page.getByText("SECOND-00001", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("SECOND-CLIENT-ELEC-00001", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "← Retour aux documents" }).click();
   await page
-    .getByRole("cell", { name: /Plan automatique Atelier ATL-ELEC-00001/ })
+    .getByLabel("Filtrer par provisoire ou définitif")
+    .selectOption("FINAL");
+  await expect(
+    page.getByRole("cell", { name: /Plan sous nouveau client/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: /Plan automatique Atelier/ }),
+  ).toHaveCount(0);
+  await page
+    .getByLabel("Filtrer par provisoire ou définitif")
+    .selectOption("PROVISIONAL");
+  await page
+    .getByRole("cell", {
+      name: /Plan automatique Atelier CLIENT-ATELIER-ELEC-00001/,
+    })
     .click();
   await page.getByRole("button", { name: "Modifier la fiche" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Client du document").selectOption("auto");
   await dialog.getByRole("button", { name: "Enregistrer la fiche" }).click();
-  await expect(page.getByText("SECOND-00002", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("SECOND-CLIENT-ELEC-00002", { exact: true }),
+  ).toBeVisible();
   await page
     .getByText("Historique des références (1)", { exact: true })
     .click();
-  await expect(page.getByText("ATL-ELEC-00001", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("CLIENT-ATELIER-ELEC-00001", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Modifier la fiche" }).click();
   dialog = page.getByRole("dialog");
   await dialog
@@ -209,13 +221,15 @@ test("clients et patrimoine : création, rattachement, référence automatique e
     )
     .check();
   await dialog.getByRole("button", { name: "Enregistrer la fiche" }).click();
-  await expect(page.getByText("SECOND-00003", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("SECOND-CLIENT-ELEC-00003", { exact: true }),
+  ).toBeVisible();
   await expect(
     page
       .locator("p")
-      .filter({ hasText: "Dossier de plans électriques :" })
+      .filter({ hasText: "Document électrique :" })
       .locator(".electrical-plan-stage"),
-  ).toHaveText("Définitif");
+  ).toHaveText("Provisoire");
   await page.screenshot({
     path: "artifacts/electroplan-edition-reference.png",
     fullPage: true,

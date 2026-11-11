@@ -68,7 +68,6 @@ test("édition complète : héritage client, réaffectation, historique, déplac
           name: "Client A",
           code: "CLA",
           prefix: "CLIENT-A",
-          electricalPlanStage: "PROVISIONAL",
         },
         201,
       ),
@@ -79,12 +78,11 @@ test("édition complète : héritage client, réaffectation, historique, déplac
           name: "Client B",
           code: "CLB",
           prefix: "CLIENT-B",
-          electricalPlanStage: "FINAL",
         },
         201,
       );
-    assert.equal(a.electricalPlanStage, "PROVISIONAL");
-    assert.equal(b.electricalPlanStage, "FINAL");
+    assert.equal(a.electricalPlanStage, undefined);
+    assert.equal(b.electricalPlanStage, undefined);
     await req(
       "POST",
       "/clients",
@@ -131,52 +129,40 @@ test("édition complète : héritage client, réaffectation, historique, déplac
       "/documents",
       {
         name: "Plan avant changement",
+        electricalPlanStage: "PROVISIONAL",
         locationId: panel.id,
         equipmentIds: [panel.id],
       },
       201,
     );
-    assert.equal(old.reference, "CLIENT-A-00001");
+    assert.equal(old.reference, "CLIENT-A-ELEC-00001");
     const fields = {
       name: "Bâtiment modifié",
       reference: "BAT-42",
       description: "Description modifiée",
     };
-    await req("PATCH", `/locations/${building.id}`, {
-      ...fields,
-      clientId: b.id,
-      electricalPlanStage: "FINAL",
-    });
-    assert.equal(
-      (await req("GET", "/locations")).find(
-        (node: any) => node.id === building.id,
-      ).electricalPlanStage,
-      "FINAL",
-    );
     await req(
       "PATCH",
       `/locations/${building.id}`,
-      { ...fields, electricalPlanStage: "INVALID" },
+      { ...fields, electricalPlanStage: "FINAL" },
       400,
     );
     await req("PATCH", `/locations/${building.id}`, {
       ...fields,
-      electricalPlanStage: null,
+      clientId: b.id,
     });
-    assert.equal(
-      (await req("GET", "/locations")).find(
-        (node: any) => node.id === building.id,
-      ).electricalPlanStage,
-      null,
-    );
     assert.equal((await req("GET", `/documents/${old.id}`)).clientId, a.id);
     const fresh = await req(
       "POST",
       "/documents",
-      { name: "Plan après changement", locationId: panel.id },
+      {
+        name: "Plan après changement",
+        electricalPlanStage: "FINAL",
+        locationId: panel.id,
+      },
       201,
     );
-    assert.equal(fresh.reference, "CLIENT-B-00001");
+    assert.equal(fresh.reference, "CLIENT-B-ELEC-00001");
     await req("PUT", `/documents/${old.id}`, {
       name: "Plan réaffecté",
       locationId: panel.id,
@@ -184,10 +170,13 @@ test("édition complète : héritage client, réaffectation, historique, déplac
       equipmentIds: [panel.id],
     });
     let updated = await req("GET", `/documents/${old.id}`);
-    assert.equal(updated.reference, "CLIENT-B-00002");
+    assert.equal(updated.reference, "CLIENT-B-ELEC-00002");
     assert.equal(updated.referenceHistory[0].reference, old.reference);
     assert.equal(updated.referenceHistory[0].clientId, a.id);
-    assert.equal((await req("GET", "/documents?q=CLIENT-A-00001")).total, 1);
+    assert.equal(
+      (await req("GET", "/documents?q=CLIENT-A-ELEC-00001")).total,
+      1,
+    );
     await req("PUT", `/clients/${b.id}`, {
       name: b.name,
       code: b.code,
@@ -200,8 +189,24 @@ test("édition complète : héritage client, réaffectation, historique, déplac
       equipmentIds: [panel.id],
     });
     updated = await req("GET", `/documents/${old.id}`);
-    assert.equal(updated.reference, "NOUVEAU-B-00003");
+    assert.equal(updated.reference, "CLIENT-B-ELEC-00003");
     assert.equal(updated.referenceHistory.length, 2);
+    assert.equal(updated.electricalPlanStage, "PROVISIONAL");
+    assert.equal(
+      (await req("GET", "/documents?electricalPlanStage=FINAL")).items[0].id,
+      fresh.id,
+    );
+    await req(
+      "PUT",
+      `/documents/${old.id}`,
+      {
+        name: "Modification état",
+        locationId: panel.id,
+        reference: updated.reference,
+        electricalPlanStage: "INVALID",
+      },
+      400,
+    );
     await req("PATCH", `/locations/${building.id}`, {
       ...fields,
       clientId: null,
@@ -304,7 +309,7 @@ test("édition complète : héritage client, réaffectation, historique, déplac
       { name: "Numéro après édition", locationId: panel.id },
       201,
     );
-    assert.equal(reserved.reference, "CLIENT-B-00004");
+    assert.equal(reserved.reference, "CLIENT-B-ELEC-00004");
     await req(
       "POST",
       "/users",

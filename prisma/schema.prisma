@@ -45,7 +45,6 @@ model Location {
   clientId String?
   client Client? @relation(fields: [clientId], references: [id], onDelete: Restrict)
   inheritClient Boolean @default(true)
-  electricalPlanStage String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users UserSite[]
@@ -70,6 +69,7 @@ model Document {
   buildingType String @default("")
   installationType String @default("Électricité")
   status String @default("Brouillon")
+  electricalPlanStage String?
   planDate String @default("")
   currentVersionId String?
   createdAt DateTime @default(now())
@@ -88,7 +88,6 @@ model Client {
   phone String @default("")
   address String @default("")
   description String @default("")
-  electricalPlanStage String?
   active Boolean @default(true)
   nextNumber Int @default(1)
   createdAt DateTime @default(now())
