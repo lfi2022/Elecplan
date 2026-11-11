@@ -1,7 +1,7 @@
 import "dotenv/config";
 import path from "node:path";
-process.env.CHECKPOINT_DISABLE='1';
-process.env.PRISMA_HIDE_UPDATE_MESSAGE='true';
+process.env.CHECKPOINT_DISABLE = "1";
+process.env.PRISMA_HIDE_UPDATE_MESSAGE = "true";
 export const dataDir = path.resolve(process.env.DATA_DIR || "./data");
 process.env.DATABASE_URL ||= `file:${path.join(dataDir, "electroplan.db").replaceAll("\\", "/")}`;
 if (!process.env.DATABASE_URL.startsWith("file:"))

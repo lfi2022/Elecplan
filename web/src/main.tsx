@@ -69,10 +69,44 @@ function Modal({
   children: ReactNode;
   close: () => void;
 }) {
+  const dialogRef = React.useRef<HTMLElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current!;
+    dialog.querySelector<HTMLElement>("input,select,textarea,button")?.focus();
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+      }
+      if (event.key === "Tab") {
+        const elements = Array.from(
+          dialog.querySelectorAll<HTMLElement>(
+            "button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],iframe",
+          ),
+        ).filter((el) => el.getClientRects().length);
+        const first = elements[0],
+          last = elements.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", keydown);
+    return () => {
+      document.removeEventListener("keydown", keydown);
+      previous?.focus();
+    };
+  }, []);
   return (
     <div className="veil" onClick={close}>
       <section
         className="modal"
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}

@@ -97,10 +97,7 @@ const documentSchema = z
     status: z
       .enum(["Brouillon", "À valider", "En vigueur", "Archivé"])
       .default("Brouillon"),
-    planDate: z
-      .string()
-      .regex(/^(\d{4}-\d{2}-\d{2})?$/)
-      .default(""),
+    planDate: z.union([z.iso.date(), z.literal("")]).default(""),
     equipmentIds: z.array(idSchema).max(100).default([]),
   })
   .strict();
@@ -157,7 +154,9 @@ export async function buildApp(
   app.addHook("onSend", async (req) => {
     req.release?.();
   });
-  app.addHook("onError", async (req) => { req.release?.(); });
+  app.addHook("onError", async (req) => {
+    req.release?.();
+  });
   app.addHook("preHandler", async (req, reply) => {
     if (!req.url.startsWith("/api")) return;
     reply.header("Cache-Control", "no-store");
@@ -526,14 +525,8 @@ export async function buildApp(
         installationType: z.string().max(100).optional(),
         buildingType: z.string().max(100).optional(),
         equipmentId: idSchema.optional(),
-        dateFrom: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/)
-          .optional(),
-        dateTo: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/)
-          .optional(),
+        dateFrom: z.iso.date().optional(),
+        dateTo: z.iso.date().optional(),
         page: z.coerce.number().int().min(1).max(100000).default(1),
       })
       .parse(req.query);
@@ -557,7 +550,7 @@ export async function buildApp(
         q.equipmentId
           ? { equipment: { some: { equipmentId: q.equipmentId } } }
           : {},
-        q.tag ? { tags: { contains: JSON.stringify(q.tag).slice(1, -1) } } : {},
+        q.tag ? { tags: { contains: JSON.stringify(q.tag) } } : {},
         q.dateFrom || q.dateTo
           ? { planDate: { gte: q.dateFrom, lte: q.dateTo } }
           : {},

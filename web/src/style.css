@@ -820,6 +820,14 @@ legend {
   color: #ae4939;
   border: 1px solid #f2d6d0;
 }
+.main main > .alert.error {
+  position: fixed;
+  top: 90px;
+  right: 24px;
+  max-width: min(520px, calc(100vw - 32px));
+  z-index: 30;
+  box-shadow: 0 8px 30px #0002;
+}
 .success {
   background: #e7f6ee;
   color: #226c4b;

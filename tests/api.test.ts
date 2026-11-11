@@ -191,6 +191,13 @@ test("parcours API : installation, RBAC, fichiers, révisions, recherche, sauveg
       planDate: "2026-11-11",
     };
     const doc = (await request("POST", "/documents", docInput, 201)).json();
+    await request(
+      "POST",
+      "/documents",
+      { ...docInput, planDate: "2026-99-99" },
+      400,
+    );
+    assert.equal((await request("GET", "/documents?tag=urge")).json().total, 0);
     const secretDoc = (
       await request(
         "POST",
