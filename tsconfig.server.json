@@ -1,1 +1,1 @@
-{"compilerOptions":{"target":"ES2022","lib":["ES2022"],"module":"NodeNext","moduleResolution":"NodeNext","strict":true,"esModuleInterop":true,"skipLibCheck":true,"outDir":"dist","rootDir":"."},"include":["server","scripts/sign-license.ts"]}
+{"compilerOptions":{"target":"ES2022","lib":["ES2022"],"module":"NodeNext","moduleResolution":"NodeNext","strict":true,"esModuleInterop":true,"skipLibCheck":true,"outDir":"dist","rootDir":"."},"include":["server","scripts/sign-license.ts","scripts/migrate.ts"]}
