@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { PrismaClient, Prisma } from "@prisma/client";
 import { z } from "zod";
+import { electricalPlanStages } from "../shared/electricalPlans.js";
 
 function reject(statusCode: number, message: string): never {
   throw Object.assign(new Error(message), { statusCode });
@@ -25,6 +26,7 @@ const clientSchema = z
     phone: z.string().max(50).default(""),
     address: z.string().max(1000).default(""),
     description: z.string().max(5000).default(""),
+    electricalPlanStage: z.enum(electricalPlanStages).nullable().optional(),
     active: z.boolean().default(true),
   })
   .strict();
@@ -58,7 +60,14 @@ export function registerClients(
         ],
       },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, code: true, prefix: true, active: true },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        prefix: true,
+        active: true,
+        electricalPlanStage: true,
+      },
     });
   });
   app.post("/api/clients", async (req, reply) => {

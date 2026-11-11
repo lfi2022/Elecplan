@@ -6,7 +6,9 @@ import {
   type RenderTask,
 } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { api, bytes, labels, type Location } from "./api";
+import { api, bytes, labels, type Location, type Client } from "./api";
+import { electricalPlanStageForFolder } from "../../shared/electricalPlans";
+import { ElectricalPlanStageBadge } from "./ElectricalPlanStage";
 import "./reader.css";
 
 GlobalWorkerOptions.workerSrc = workerUrl;
@@ -27,6 +29,7 @@ type Plan = {
   versions: Version[];
   status: string;
   category: string;
+  installationType: string;
 };
 type Folder = {
   items: Plan[];
@@ -40,12 +43,14 @@ const supported = (mime: string) =>
 
 export function DocumentReader({
   locations,
+  clients,
   initialDocumentId,
   initialVersionId,
   canDownload,
   close,
 }: {
   locations: Location[];
+  clients: Client[];
   initialDocumentId?: string;
   initialVersionId?: string;
   canDownload: boolean;
@@ -209,6 +214,14 @@ export function DocumentReader({
           <span>
             {location.name}
             <small>{labels[location.kind]}</small>
+            {["SITE", "BUILDING"].includes(location.kind) && (
+              <ElectricalPlanStageBadge
+                stage={
+                  electricalPlanStageForFolder(locations, clients, location.id)
+                    .stage
+                }
+              />
+            )}
           </span>
         </button>
         {opened && (
@@ -395,6 +408,20 @@ export function DocumentReader({
               )}
               <div className="reader-footer">
                 {locations.find((l) => l.id === doc.locationId)?.name}{" "}
+                {doc.installationType === "Électricité" && (
+                  <span>
+                    Plans électriques :{" "}
+                    <ElectricalPlanStageBadge
+                      stage={
+                        electricalPlanStageForFolder(
+                          locations,
+                          clients,
+                          doc.locationId,
+                        ).stage
+                      }
+                    />
+                  </span>
+                )}
                 <span>
                   {doc.status} · {doc.category}
                 </span>

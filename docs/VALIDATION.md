@@ -8,7 +8,7 @@ Les vérifications ci-dessous ont été exécutées sur le code livré. Elles d�
 | --- | --- |
 | TypeScript frontend et backend | `npm run check` réussi en environnement Windows et Linux |
 | Compilation de production | Client Prisma, backend Node et frontend Vite compilés sans erreur |
-| Tests Node | Sept tests, comprenant des parcours API avec bases temporaires, sécurité, licences, clients, édition hiérarchique, recherche du patrimoine et récupération |
+| Tests Node | Huit tests, comprenant des parcours API avec bases temporaires, sécurité, licences, clients, édition hiérarchique, indication des dossiers électriques, recherche du patrimoine et récupération |
 | API | Installation initiale et refus de reconfiguration, authentification, CSRF et origine, hiérarchie complète, parents invalides, métadonnées, associations d’équipements, imports, versions, restauration et téléchargement |
 | Droits | Lecteur limité à un site ; refus de lecture d’un autre site et de son QR code ; refus d’écriture et d’administration ; révocation des sessions |
 | Documents | Fichier avec signature invalide refusé ; PNG importé et téléchargé à l’identique ; PDF textuel généré, extrait et trouvé par son préfixe dans FTS5 ; import DWG/DXF par signatures ; révision dupliquée refusée |
@@ -21,6 +21,7 @@ Les vérifications ci-dessous ont été exécutées sur le code livré. Elles d�
 | Clients et références | Préfixes normalisés et uniques, rattachements modifiables à chaque niveau, héritage et absence de client explicite, créations simultanées sans doublon, préfixe éditable sans réécriture des anciens documents, réservation permanente des références, réaffectation et renouvellement avec historique, client désactivé et filtrage selon les sites autorisés. |
 | Édition du patrimoine | Nom, référence, description, type, parent et client éditables ; refus des cycles et associations invalides ; déplacement d’un sous-arbre et de ses documents entre sites, et refus d’un déplacement qui séparerait un document d’un équipement. Vérifications API et parcours navigateur de changement du client d’un bâtiment après création. |
 | Recherche du patrimoine | Recherche multi-mots sans accents, référence, description, client, filtre par type, parents conservés, aucun résultat et réinitialisation ; vérifications unitaires et navigateur. |
+| Provisoire / Définitif | Enregistrement et validation API sur le client et le bâtiment ; refus des valeurs invalides ; héritage du client, priorité des dossiers parents, modification et retour à l’héritage ; absence d’indication laissée sans classification. Parcours navigateur avec client provisoire et bâtiment définitif, puis vérification du badge sur la fiche du plan électrique. |
 | Dépendances | `npm audit --audit-level=moderate` : aucune vulnérabilité connue signalée au moment du contrôle |
 
 Les tests navigateur produisent `artifacts/electroplan-desktop.png` et `artifacts/electroplan-mobile.png`. Les données de test ne sont pas initialisées dans une installation de production.

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Client, type Location } from "./api";
+import { ElectricalPlanStageBadge } from "./ElectricalPlanStage";
 
 export function Clients({
   locations,
@@ -52,6 +53,7 @@ export function Clients({
                 <th>CLIENT</th>
                 <th>PRÉFIXE DOCUMENTAIRE</th>
                 <th>PATRIMOINE / DOCUMENTS</th>
+                <th>PLANS ÉLECTRIQUES</th>
                 <th>STATUT</th>
                 <th />
               </tr>
@@ -82,6 +84,11 @@ export function Clients({
                         .map((l) => l.name)
                         .join(", ") || "Rattachez un site dans Patrimoine"}
                     </small>
+                  </td>
+                  <td>
+                    <ElectricalPlanStageBadge
+                      stage={client.electricalPlanStage}
+                    />
                   </td>
                   <td>
                     <span
@@ -151,6 +158,8 @@ export function Clients({
                   data = {
                     ...Object.fromEntries(form),
                     active: form.get("active") === "on",
+                    electricalPlanStage:
+                      form.get("electricalPlanStage") || null,
                   };
                 setBusy(true);
                 try {
@@ -181,6 +190,21 @@ export function Clients({
                 />
               </label>
               <div className="form-grid">
+                <label className="field">
+                  <span>Plans électriques : provisoire ou définitif</span>
+                  <select
+                    name="electricalPlanStage"
+                    defaultValue={editing.electricalPlanStage || ""}
+                  >
+                    <option value="">Non renseigné</option>
+                    <option value="PROVISIONAL">Provisoire</option>
+                    <option value="FINAL">Définitif</option>
+                  </select>
+                  <small>
+                    Valeur du dossier client, utilisée par les bâtiments sans
+                    indication propre.
+                  </small>
+                </label>
                 <label className="field">
                   <span>Code client</span>
                   <input

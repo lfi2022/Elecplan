@@ -64,15 +64,38 @@ test("édition complète : héritage client, réaffectation, historique, déplac
     const a = await req(
         "POST",
         "/clients",
-        { name: "Client A", code: "CLA", prefix: "CLIENT-A" },
+        {
+          name: "Client A",
+          code: "CLA",
+          prefix: "CLIENT-A",
+          electricalPlanStage: "PROVISIONAL",
+        },
         201,
       ),
       b = await req(
         "POST",
         "/clients",
-        { name: "Client B", code: "CLB", prefix: "CLIENT-B" },
+        {
+          name: "Client B",
+          code: "CLB",
+          prefix: "CLIENT-B",
+          electricalPlanStage: "FINAL",
+        },
         201,
       );
+    assert.equal(a.electricalPlanStage, "PROVISIONAL");
+    assert.equal(b.electricalPlanStage, "FINAL");
+    await req(
+      "POST",
+      "/clients",
+      {
+        name: "Invalide",
+        code: "BAD",
+        prefix: "BAD",
+        electricalPlanStage: "INVALID",
+      },
+      400,
+    );
     const site = await req(
         "POST",
         "/locations",
@@ -122,7 +145,30 @@ test("édition complète : héritage client, réaffectation, historique, déplac
     await req("PATCH", `/locations/${building.id}`, {
       ...fields,
       clientId: b.id,
+      electricalPlanStage: "FINAL",
     });
+    assert.equal(
+      (await req("GET", "/locations")).find(
+        (node: any) => node.id === building.id,
+      ).electricalPlanStage,
+      "FINAL",
+    );
+    await req(
+      "PATCH",
+      `/locations/${building.id}`,
+      { ...fields, electricalPlanStage: "INVALID" },
+      400,
+    );
+    await req("PATCH", `/locations/${building.id}`, {
+      ...fields,
+      electricalPlanStage: null,
+    });
+    assert.equal(
+      (await req("GET", "/locations")).find(
+        (node: any) => node.id === building.id,
+      ).electricalPlanStage,
+      null,
+    );
     assert.equal((await req("GET", `/documents/${old.id}`)).clientId, a.id);
     const fresh = await req(
       "POST",

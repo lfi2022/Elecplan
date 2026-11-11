@@ -38,6 +38,8 @@ export const formatDate = (s: string) =>
 export const bytes = (n: number) =>
   n > 1048576 ? `${(n / 1048576).toFixed(1)} Mo` : `${Math.ceil(n / 1024)} Ko`;
 export type Location = {
+  electricalPlanStage?:
+    import("../../shared/electricalPlans").ElectricalPlanStage | null;
   id: string;
   kind: string;
   name: string;
@@ -46,9 +48,11 @@ export type Location = {
   parentId: string | null;
   siteId: string;
   clientId?: string | null;
-  inheritClient?:boolean;
+  inheritClient?: boolean;
 };
 export type Client = {
+  electricalPlanStage?:
+    import("../../shared/electricalPlans").ElectricalPlanStage | null;
   id: string;
   name: string;
   code: string;

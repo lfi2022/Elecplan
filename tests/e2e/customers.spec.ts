@@ -36,6 +36,9 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   await dialog.getByLabel("Code client", { exact: true }).fill("atelier");
   await dialog.getByLabel("Préfixe documentaire").fill("atl-elec");
   await dialog
+    .getByLabel("Plans électriques : provisoire ou définitif")
+    .selectOption("PROVISIONAL");
+  await dialog
     .getByLabel("E-mail", { exact: true })
     .fill("contact@atelier.test");
   await dialog.getByRole("button", { name: "Enregistrer le client" }).click();
@@ -44,6 +47,12 @@ test("clients et patrimoine : création, rattachement, référence automatique e
       name: "ATL-ELEC-00001 Prochaine séquence : 00001",
     }),
   ).toBeVisible();
+  await expect(
+    page
+      .getByRole("row")
+      .filter({ hasText: "Client Atelier" })
+      .locator(".electrical-plan-stage"),
+  ).toHaveText("Provisoire");
   await page.getByRole("button", { name: "▦ Patrimoine", exact: true }).click();
   await page
     .getByRole("button", { name: "+ Ajouter une localisation" })
@@ -161,9 +170,15 @@ test("clients et patrimoine : création, rattachement, référence automatique e
     .getByLabel("Client du site / bâtiment")
     .selectOption({ label: "Second client · SECOND" });
   await dialog
+    .getByLabel("Plans électriques : provisoire ou définitif")
+    .selectOption("FINAL");
+  await dialog
     .getByRole("button", { name: "Enregistrer", exact: true })
     .click();
   await expect(page.getByText("Second client", { exact: true })).toBeVisible();
+  await expect(page.locator("dd .electrical-plan-stage")).toHaveText(
+    "Définitif",
+  );
   await page.getByRole("button", { name: "▤ Documents", exact: true }).click();
   await page.getByRole("button", { name: "+ Nouveau document" }).click();
   dialog = page.getByRole("dialog");
@@ -195,6 +210,12 @@ test("clients et patrimoine : création, rattachement, référence automatique e
     .check();
   await dialog.getByRole("button", { name: "Enregistrer la fiche" }).click();
   await expect(page.getByText("SECOND-00003", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .locator("p")
+      .filter({ hasText: "Dossier de plans électriques :" })
+      .locator(".electrical-plan-stage"),
+  ).toHaveText("Définitif");
   await page.screenshot({
     path: "artifacts/electroplan-edition-reference.png",
     fullPage: true,

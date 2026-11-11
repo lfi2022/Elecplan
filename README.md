@@ -15,6 +15,7 @@ Gestion autonome des plans électriques et du patrimoine technique, en français
 - Comptes administrateur, éditeur, lecteur, permissions supplémentaires granulaires et liste explicite des sites autorisés.
 - Clients : coordonnées, code, préfixe documentaire et rattachement des sites ; références séquentielles générées automatiquement à la création, par exemple `ACME-ELEC-00001`.
 - Recherche du patrimoine par nom, référence, description, client et type, sans sensibilité aux accents ; les parents des résultats restent visibles dans l’arborescence.
+- Dossiers de plans électriques : indication Provisoire / Définitif sur les clients et bâtiments, affichée dans le patrimoine et le lecteur, avec héritage et indication explicite de la source.
 - Audit des connexions et opérations ; administration serveur, organisation, stockage, sauvegardes cohérentes et restauration.
 - Activation locale de licences Ed25519 liées à l’installation, avec édition, client et expiration vérifiés côté serveur.
 
@@ -94,6 +95,14 @@ Les documents antérieurs conservent exactement leurs références et restent de
 La gestion des clients et des rattachements dans le patrimoine est réservée aux administrateurs. Les autres utilisateurs voient uniquement les identifiants et préfixes des clients rattachés à des éléments ou documents de leurs sites autorisés, sans coordonnées privées ni compteurs globaux. Un éditeur peut réaffecter un document aux clients auxquels il a accès. Les droits de lecture restent déterminés par le site.
 
 Dans **Patrimoine**, saisir plusieurs mots dans **Rechercher dans le patrimoine**, puis éventuellement choisir un type d’élément. La recherche porte uniquement sur les éléments accessibles à l’utilisateur ; les branches parentes restent visibles pour situer chaque résultat.
+
+### Dossiers électriques provisoires ou définitifs
+
+Dans **Clients → Modifier**, renseigner **Plans électriques : provisoire ou définitif**. Cette indication est indépendante du statut Actif/Désactivé du client et du statut de validation des documents.
+
+Dans **Patrimoine → bâtiment → Modifier**, choisir **Provisoire**, **Définitif**, ou **Hériter du dossier parent ou du client**. Le dossier le plus proche ayant une indication explicite est prioritaire ; à défaut, l’indication du client applicable est utilisée. Les descendants sans indication propre suivent cette valeur. La fiche précise la source lorsqu’il s’agit d’un héritage.
+
+Les badges sont visibles dans la liste des clients, les dossiers du patrimoine, la fiche d’un document électrique et le lecteur intégré. Les dossiers existants restent **Non renseigné** tant qu’aucune indication propre ou héritée n’est disponible. Ce réglage ne réécrit pas les PDF/images et ne transforme pas automatiquement un document Brouillon en document En vigueur.
 
 ```bash
 sudo systemctl start electroplan

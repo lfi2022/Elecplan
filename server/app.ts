@@ -32,6 +32,7 @@ import {
   allocateReference,
 } from "./clients.js";
 import { editLocation } from "./hierarchy.js";
+import { electricalPlanStages } from "../shared/electricalPlans.js";
 import {
   effectiveClient,
   allowedParents,
@@ -88,6 +89,7 @@ const locationSchema = z
     parentId: idSchema.nullable().default(null),
     clientId: idSchema.nullable().default(null),
     inheritClient: z.boolean().default(true),
+    electricalPlanStage: z.enum(electricalPlanStages).nullable().optional(),
   })
   .strict();
 const documentSchema = z

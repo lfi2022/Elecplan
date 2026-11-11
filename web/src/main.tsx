@@ -18,6 +18,11 @@ import {
 import { Clients } from "./Clients";
 import { searchPatrimony } from "./patrimony";
 import {
+  electricalPlanStageForFolder,
+  type ElectricalPlanStage,
+} from "../../shared/electricalPlans";
+import { ElectricalPlanStageBadge } from "./ElectricalPlanStage";
+import {
   effectiveClient,
   descendantIds,
   allowedParents,
@@ -787,6 +792,7 @@ function Locations({
     [kind, setKind] = useState("BUILDING"),
     [parentId, setParentId] = useState(""),
     [clientChoice, setClientChoice] = useState("inherit"),
+    [planStage, setPlanStage] = useState<ElectricalPlanStage | "">(""),
     [qr, setQr] = useState(false),
     [query, setQuery] = useState(""),
     [kindFilter, setKindFilter] = useState("");
@@ -812,7 +818,19 @@ function Locations({
             {l.kind === "SITE" ? "◈" : l.kind === "PANEL" ? "ϟ" : "▦"}
           </span>
           {l.name}
-          <small>{labels[l.kind]}</small>
+          <small>
+            {labels[l.kind]}
+            {["SITE", "BUILDING"].includes(l.kind) && (
+              <>
+                <br />
+                <ElectricalPlanStageBadge
+                  stage={
+                    electricalPlanStageForFolder(locations, clients, l.id).stage
+                  }
+                />
+              </>
+            )}
+          </small>
         </button>
         {locations
           .filter((c) => c.parentId === l.id)
@@ -831,6 +849,7 @@ function Locations({
               setKind(admin ? "SITE" : "BUILDING");
               setParentId(selected);
               setClientChoice("inherit");
+              setPlanStage("");
               setModal(true);
             }}
           >
@@ -916,6 +935,29 @@ function Locations({
                       c.id === effectiveClient(locations, current.id).clientId,
                   )?.name || "Aucun client rattaché"}
                 </dd>
+                <dt>Dossier de plans électriques</dt>
+                <dd>
+                  <ElectricalPlanStageBadge
+                    stage={
+                      electricalPlanStageForFolder(
+                        locations,
+                        clients,
+                        current.id,
+                      ).stage
+                    }
+                  />
+                  <small>
+                    {current.electricalPlanStage
+                      ? "Indication propre à ce dossier."
+                      : electricalPlanStageForFolder(
+                            locations,
+                            clients,
+                            current.id,
+                          ).sourceName
+                        ? `Hérité de ${electricalPlanStageForFolder(locations, clients, current.id).sourceName}.`
+                        : "Aucune indication enregistrée."}
+                  </small>
+                </dd>
                 <dt>Description</dt>
                 <dd>{current.description || "Aucune description"}</dd>
                 <dt>Identifiant</dt>
@@ -942,6 +984,7 @@ function Locations({
                               ? "none"
                               : "inherit"),
                         );
+                        setPlanStage(current.electricalPlanStage || "");
                         setModal(true);
                       }}
                     >
@@ -996,6 +1039,7 @@ function Locations({
                   {
                     ...f,
                     kind,
+                    electricalPlanStage: planStage || null,
                     parentId: kind === "SITE" ? null : parentId || null,
                     ...(admin
                       ? {
@@ -1110,6 +1154,23 @@ function Locations({
                 </small>
               </Field>
             )}
+            <Field label="Plans électriques : provisoire ou définitif">
+              <select
+                value={planStage}
+                onChange={(e) =>
+                  setPlanStage(e.target.value as ElectricalPlanStage | "")
+                }
+              >
+                <option value="">Hériter du dossier parent ou du client</option>
+                <option value="PROVISIONAL">Provisoire</option>
+                <option value="FINAL">Définitif</option>
+              </select>
+              <small>
+                Cette indication concerne le dossier de plans électriques et ses
+                descendants. Elle ne modifie ni les fichiers ni le statut de
+                validation des documents.
+              </small>
+            </Field>
             <Field label="Description">
               <textarea
                 name="description"
@@ -1422,6 +1483,7 @@ function Documents({
         <React.Suspense fallback={<p role="status">Chargement du lecteur…</p>}>
           <DocumentReader
             locations={locations}
+            clients={clients}
             canDownload={canDownload}
             close={() => setReader(false)}
           />
@@ -1748,6 +1810,17 @@ function DocumentDetail({
             </div>
           ))}
         </dl>
+        {doc.installationType === "Électricité" && (
+          <p className="muted">
+            Dossier de plans électriques :{" "}
+            <ElectricalPlanStageBadge
+              stage={
+                electricalPlanStageForFolder(locations, clients, doc.locationId)
+                  .stage
+              }
+            />
+          </p>
+        )}
         {!!doc.referenceHistory?.length && (
           <details>
             <summary>
@@ -1926,6 +1999,7 @@ function DocumentDetail({
         <React.Suspense fallback={<p role="status">Chargement du lecteur…</p>}>
           <DocumentReader
             locations={locations}
+            clients={clients}
             initialDocumentId={id}
             initialVersionId={preview.id}
             canDownload={can("documents:download")}
