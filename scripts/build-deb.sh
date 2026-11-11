@@ -28,4 +28,4 @@ cp packaging/debian/* "$stage/DEBIAN/"
 sed -i "s/Version: VERSION/Version: $version/" "$stage/DEBIAN/control"
 chmod 0755 "$stage/DEBIAN/"{preinst,postinst,prerm,postrm}
 dpkg-deb --root-owner-group --build "$stage" "artifacts/electroplan_${version}_amd64.deb"
-sha256sum "artifacts/electroplan_${version}_amd64.deb" > "artifacts/electroplan_${version}_amd64.deb.sha256"
+(cd artifacts && sha256sum "electroplan_${version}_amd64.deb" > "electroplan_${version}_amd64.deb.sha256")
