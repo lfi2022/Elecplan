@@ -91,6 +91,7 @@ test("parcours API : installation, RBAC, fichiers, révisions, recherche, sauveg
     );
     await request("GET", "/locations", undefined, 401, false);
     await login("admin@example.test");
+    await request('GET','/does-not-exist',undefined,404);
     const badCsrf = await app.inject({
       method: "POST",
       url: "/api/locations",

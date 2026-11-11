@@ -153,6 +153,8 @@ export async function buildApp(
   // A single admission queue makes snapshots/restores consistent with all API operations.
   app.addHook("preHandler", async (req) => {
     if (!req.url.startsWith("/api")) return;
+    // Static-file fallback can invoke not-found hooks again for the same request.
+    if (req.release) return;
     const previous = queue;
     queue = new Promise<void>((resolve) => {
       req.release = resolve;
