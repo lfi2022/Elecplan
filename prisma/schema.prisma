@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+datasource db {
+  provider = "sqlite"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(uuid())
+  email String @unique
+  name String
+  passwordHash String
+  role String @default("READER")
+  permissions String @default("[]")
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  sessions Session[]
+  sites UserSite[]
+}
+model Session {
+  id String @id
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  csrf String
+  expiresAt DateTime
+}
+model UserSite {
+  userId String
+  siteId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site Location @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  @@id([userId, siteId])
+}
+model Location {
+  id String @id @default(uuid())
+  kind String
+  name String
+  reference String @default("")
+  description String @default("")
+  parentId String?
+  parent Location? @relation("Tree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Location[] @relation("Tree")
+  siteId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users UserSite[]
+  documents Document[] @relation("DocumentLocation")
+  equipmentLinks DocumentEquipment[]
+  @@index([siteId])
+}
+model Document {
+  id String @id @default(uuid())
+  name String
+  reference String
+  description String @default("")
+  locationId String
+  location Location @relation("DocumentLocation", fields: [locationId], references: [id], onDelete: Restrict)
+  siteId String
+  category String @default("Plan électrique")
+  tags String @default("[]")
+  buildingType String @default("")
+  installationType String @default("Électricité")
+  status String @default("Brouillon")
+  planDate String @default("")
+  currentVersionId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  versions Version[]
+  equipment DocumentEquipment[]
+  @@index([siteId])
+}
+model DocumentEquipment {
+  documentId String
+  equipmentId String
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  equipment Location @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  @@id([documentId, equipmentId])
+}
+model Version {
+  id String @id @default(uuid())
+  documentId String
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  revision String
+  originalName String
+  storageKey String @unique
+  mime String
+  size Int
+  sha256 String
+  text String @default("")
+  author String
+  createdAt DateTime @default(now())
+  @@unique([documentId, revision])
+}
+model Audit {
+  id String @id @default(uuid())
+  userId String?
+  actor String
+  action String
+  target String
+  siteId String?
+  ip String
+  createdAt DateTime @default(now())
+  @@index([siteId, createdAt])
+}
+model Setting {
+  key String @id
+  value String
+}
