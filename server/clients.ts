@@ -51,7 +51,12 @@ export function registerClients(
         include: { _count: { select: { sites: true, documents: true } } },
       });
     return db.client.findMany({
-      where: { sites: { some: { id: { in: req.siteIds }, kind: "SITE" } } },
+      where: {
+        OR: [
+          { sites: { some: { siteId: { in: req.siteIds } } } },
+          { documents: { some: { siteId: { in: req.siteIds } } } },
+        ],
+      },
       orderBy: { name: "asc" },
       select: { id: true, name: true, code: true, prefix: true, active: true },
     });
@@ -72,11 +77,6 @@ export function registerClients(
       input = clientSchema.parse(req.body);
     const old = await db.client.findUnique({ where: { id } });
     if (!old) reject(404, "Client introuvable.");
-    if (old.nextNumber > 1 && input.prefix !== old.prefix)
-      reject(
-        409,
-        "Le préfixe est verrouillé après la première référence générée, pour préserver les documents existants.",
-      );
     const client = await db.client.update({ where: { id }, data: input });
     await hooks.audit(req, "client.update", id);
     return client;
@@ -104,7 +104,11 @@ export async function allocateReference(
   let reference = `${client.prefix}-${String(number).padStart(5, "0")}`;
   // Existing free-form references can predate client management; never duplicate them.
   while (
-    await tx.document.findFirst({ where: { reference }, select: { id: true } })
+    (await tx.document.findFirst({
+      where: { reference },
+      select: { id: true },
+    })) ||
+    (await tx.referenceReservation.findUnique({ where: { reference } }))
   ) {
     number++;
     reference = `${client.prefix}-${String(number).padStart(5, "0")}`;
@@ -115,5 +119,6 @@ export async function allocateReference(
     where: { id: clientId },
     data: { nextNumber: number + 1 },
   });
+  await tx.referenceReservation.create({ data: { reference, clientId } });
   return { clientId, clientNumber: number, reference };
 }

@@ -8,7 +8,7 @@ Les vérifications ci-dessous ont été exécutées sur le code livré. Elles d�
 | --- | --- |
 | TypeScript frontend et backend | `npm run check` réussi en environnement Windows et Linux |
 | Compilation de production | Client Prisma, backend Node et frontend Vite compilés sans erreur |
-| Tests Node | Six tests, comprenant des parcours API avec bases temporaires, sécurité, licences, clients, recherche du patrimoine et récupération |
+| Tests Node | Sept tests, comprenant des parcours API avec bases temporaires, sécurité, licences, clients, édition hiérarchique, recherche du patrimoine et récupération |
 | API | Installation initiale et refus de reconfiguration, authentification, CSRF et origine, hiérarchie complète, parents invalides, métadonnées, associations d’équipements, imports, versions, restauration et téléchargement |
 | Droits | Lecteur limité à un site ; refus de lecture d’un autre site et de son QR code ; refus d’écriture et d’administration ; révocation des sessions |
 | Documents | Fichier avec signature invalide refusé ; PNG importé et téléchargé à l’identique ; PDF textuel généré, extrait et trouvé par son préfixe dans FTS5 ; import DWG/DXF par signatures ; révision dupliquée refusée |
@@ -18,7 +18,8 @@ Les vérifications ci-dessous ont été exécutées sur le code livré. Elles d�
 | Cryptographie | Mots de passe salés et vérification ; signature Ed25519 valide, falsifiée, expirée et destinée à une autre installation |
 | Navigateur Chromium | Première configuration, connexion, création de site, QR, fiche, import, aperçu, téléchargement, édition, recherche, thème sombre et affichage mobile 390 px ; aucune erreur JavaScript observée |
 | Lecteur PDF/images | Second parcours navigateur : dossiers imbriqués, PDF de deux pages rendu sur canvas avec pixels contrôlés, changement de page, zoom, rotation, sélection de révision image, navigation vers un autre fichier, panneau gauche/droite et lecture mobile. Toute requête hors de l’origine locale est bloquée durant ce test. |
-| Clients et références | Préfixes normalisés et uniques, rattachement au site et héritage par bâtiment, créations simultanées sans doublon, saut des références historiques déjà utilisées, compteur non réutilisé après suppression, préfixe et référence verrouillés, client désactivé et filtrage des clients selon les sites autorisés. Parcours navigateur de création du client jusqu’à une référence automatique. |
+| Clients et références | Préfixes normalisés et uniques, rattachements modifiables à chaque niveau, héritage et absence de client explicite, créations simultanées sans doublon, préfixe éditable sans réécriture des anciens documents, réservation permanente des références, réaffectation et renouvellement avec historique, client désactivé et filtrage selon les sites autorisés. |
+| Édition du patrimoine | Nom, référence, description, type, parent et client éditables ; refus des cycles et associations invalides ; déplacement d’un sous-arbre et de ses documents entre sites, et refus d’un déplacement qui séparerait un document d’un équipement. Vérifications API et parcours navigateur de changement du client d’un bâtiment après création. |
 | Recherche du patrimoine | Recherche multi-mots sans accents, référence, description, client, filtre par type, parents conservés, aucun résultat et réinitialisation ; vérifications unitaires et navigateur. |
 | Dépendances | `npm audit --audit-level=moderate` : aucune vulnérabilité connue signalée au moment du contrôle |
 

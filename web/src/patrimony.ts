@@ -1,4 +1,5 @@
 import { labels, type Client, type Location } from "./api";
+import { effectiveClient } from "../../shared/hierarchy.js";
 export function normalizeSearch(value: string) {
   return value
     .normalize("NFD")
@@ -17,8 +18,9 @@ export function searchPatrimony(
     visible = new Set<string>(),
     byId = new Map(locations.map((item) => [item.id, item]));
   for (const item of locations) {
-    const site = byId.get(item.siteId),
-      client = clients.find((c) => c.id === site?.clientId);
+    const client = clients.find(
+      (c) => c.id === effectiveClient(locations, item.id).clientId,
+    );
     const text = normalizeSearch(
       `${item.name} ${item.reference} ${item.description} ${labels[item.kind] || ""} ${client?.name || ""} ${client?.code || ""} ${client?.prefix || ""}`,
     );

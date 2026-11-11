@@ -46,6 +46,7 @@ export type Location = {
   parentId: string | null;
   siteId: string;
   clientId?: string | null;
+  inheritClient?:boolean;
 };
 export type Client = {
   id: string;

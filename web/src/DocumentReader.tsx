@@ -88,7 +88,7 @@ export function DocumentReader({
     });
     try {
       const result = await api<{ items: Plan[]; total: number; page: number }>(
-        `/documents?locationId=${id}&page=${page}`,
+        `/documents?locationId=${id}&recursive=0&page=${page}`,
       );
       update({
         ...result,

@@ -51,7 +51,7 @@ export function Clients({
               <tr>
                 <th>CLIENT</th>
                 <th>PRÉFIXE DOCUMENTAIRE</th>
-                <th>SITES / DOCUMENTS</th>
+                <th>PATRIMOINE / DOCUMENTS</th>
                 <th>STATUT</th>
                 <th />
               </tr>
@@ -74,13 +74,11 @@ export function Clients({
                     </small>
                   </td>
                   <td>
-                    {client._count?.sites || 0} sites ·{" "}
+                    {client._count?.sites || 0} rattachements ·{" "}
                     {client._count?.documents || 0} documents
                     <small>
                       {locations
-                        .filter(
-                          (l) => l.kind === "SITE" && l.clientId === client.id,
-                        )
+                        .filter((l) => l.clientId === client.id)
                         .map((l) => l.name)
                         .join(", ") || "Rattachez un site dans Patrimoine"}
                     </small>
@@ -163,7 +161,7 @@ export function Clients({
                   );
                   setEditing(null);
                   notify(
-                    "Client enregistré. Rattachez ses sites dans Patrimoine pour activer les références automatiques.",
+                    "Client enregistré. Les prochains documents utilisent les nouveaux paramètres. Les anciennes références sont conservées.",
                   );
                 } catch (e) {
                   setError((e as Error).message);
@@ -205,12 +203,11 @@ export function Clients({
                     minLength={2}
                     maxLength={40}
                     pattern="[A-Za-z0-9]+(-[A-Za-z0-9]+)*"
-                    readOnly={(editing.nextNumber || 1) > 1}
                   />
                   <small>
-                    {(editing.nextNumber || 1) > 1
-                      ? "Préfixe verrouillé : des références ont déjà été générées."
-                      : "Exemple : ACME-ELEC-00001. Lettres, chiffres et tirets ; conversion en majuscules."}
+                    Exemple : ACME-ELEC-00001. Le préfixe peut être modifié :
+                    les anciennes références sont conservées et la numérotation
+                    continue.
                   </small>
                 </label>
                 <label className="field">

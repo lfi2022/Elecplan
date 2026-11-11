@@ -130,7 +130,7 @@ test("clients : références transactionnelles, héritage des sites, anciens doc
         kind: "BUILDING",
         name: "Mauvais rattachement",
         parentId: site.id,
-        clientId: client.id,
+        clientId: "00000000-0000-4000-8000-000000000001",
       },
       400,
     );
@@ -184,8 +184,17 @@ test("clients : références transactionnelles, héritage des sites, anciens doc
       "PUT",
       `/clients/${client.id}`,
       { name: client.name, code: client.code, prefix: "NOUVEAU" },
-      409,
+      200,
     );
+    assert.equal(
+      (await req("GET", `/documents/${first.id}`)).reference,
+      first.reference,
+    );
+    await req("PUT", `/clients/${client.id}`, {
+      name: client.name,
+      code: client.code,
+      prefix: client.prefix,
+    });
     await req(
       "PATCH",
       `/locations/${site.id}`,
@@ -195,8 +204,18 @@ test("clients : références transactionnelles, héritage des sites, anciens doc
         description: "",
         clientId: privateClient.id,
       },
-      409,
+      200,
     );
+    assert.equal(
+      (await req("GET", `/documents/${first.id}`)).clientId,
+      client.id,
+    );
+    await req("PATCH", `/locations/${site.id}`, {
+      name: site.name,
+      reference: "",
+      description: "",
+      clientId: client.id,
+    });
     await req("DELETE", `/documents/${first.id}`);
     const afterDelete = await req(
       "POST",

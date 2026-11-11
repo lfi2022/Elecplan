@@ -17,6 +17,12 @@ import {
 } from "./api";
 import { Clients } from "./Clients";
 import { searchPatrimony } from "./patrimony";
+import {
+  effectiveClient,
+  descendantIds,
+  allowedParents,
+  locationKinds,
+} from "../../shared/hierarchy";
 import "./style.css";
 const DocumentReader = React.lazy(() =>
   import("./DocumentReader").then((module) => ({
@@ -779,6 +785,8 @@ function Locations({
   const [modal, setModal] = useState(false),
     [editing, setEditing] = useState(false),
     [kind, setKind] = useState("BUILDING"),
+    [parentId, setParentId] = useState(""),
+    [clientChoice, setClientChoice] = useState("inherit"),
     [qr, setQr] = useState(false),
     [query, setQuery] = useState(""),
     [kindFilter, setKindFilter] = useState("");
@@ -821,6 +829,8 @@ function Locations({
             onClick={() => {
               setEditing(false);
               setKind(admin ? "SITE" : "BUILDING");
+              setParentId(selected);
+              setClientChoice("inherit");
               setModal(true);
             }}
           >
@@ -899,12 +909,11 @@ function Locations({
               <dl>
                 <dt>Référence</dt>
                 <dd>{current.reference || "Non renseignée"}</dd>
-                <dt>Client du site</dt>
+                <dt>Client applicable</dt>
                 <dd>
                   {clients.find(
                     (c) =>
-                      c.id ===
-                      locations.find((l) => l.id === current.siteId)?.clientId,
+                      c.id === effectiveClient(locations, current.id).clientId,
                   )?.name || "Aucun client rattaché"}
                 </dd>
                 <dt>Description</dt>
@@ -925,6 +934,14 @@ function Locations({
                       className="secondary"
                       onClick={() => {
                         setEditing(true);
+                        setKind(current.kind);
+                        setParentId(current.parentId || "");
+                        setClientChoice(
+                          current.clientId ||
+                            (current.inheritClient === false
+                              ? "none"
+                              : "inherit"),
+                        );
                         setModal(true);
                       }}
                     >
@@ -976,18 +993,19 @@ function Locations({
                 const result = await api(
                   editing ? `/locations/${current!.id}` : "/locations",
                   editing ? "PATCH" : "POST",
-                  editing
-                    ? {
-                        ...f,
-                        ...("clientId" in f
-                          ? { clientId: f.clientId || null }
-                          : {}),
-                      }
-                    : {
-                        ...f,
-                        parentId: f.parentId || null,
-                        clientId: f.clientId || null,
-                      },
+                  {
+                    ...f,
+                    kind,
+                    parentId: kind === "SITE" ? null : parentId || null,
+                    ...(admin
+                      ? {
+                          clientId: ["inherit", "none"].includes(clientChoice)
+                            ? null
+                            : clientChoice,
+                          inheritClient: clientChoice === "inherit",
+                        }
+                      : {}),
+                  },
                 );
                 select(result.id);
                 setModal(false);
@@ -1012,60 +1030,85 @@ function Locations({
                 maxLength={100}
               />
             </Field>
-            {admin &&
-              ((editing && current?.kind === "SITE") ||
-                (!editing && kind === "SITE")) && (
-                <Field label="Client du site">
-                  <select
-                    name="clientId"
-                    defaultValue={editing ? current?.clientId || "" : ""}
-                  >
-                    <option value="">Sans client · références libres</option>
-                    {clients
-                      .filter((c) => c.active || c.id === current?.clientId)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} · {c.prefix}
-                        </option>
-                      ))}
-                  </select>
-                  <small>
-                    Les nouveaux documents héritent du client du site. Les
-                    anciennes références sont conservées. Le rattachement est
-                    verrouillé après la première référence client.
-                  </small>
-                </Field>
-              )}
-            {!editing && (
-              <>
-                <Field label="Type">
-                  <select
-                    name="kind"
-                    value={kind}
-                    onChange={(e) => setKind(e.target.value)}
-                  >
-                    {Object.keys(labels)
-                      .filter(
-                        (k) =>
-                          !["ADMIN", "EDITOR", "READER"].includes(k) &&
-                          (admin || k !== "SITE"),
-                      )
-                      .map((k) => (
-                        <option key={k} value={k}>
-                          {labels[k]}
-                        </option>
-                      ))}
-                  </select>
-                </Field>
-                {kind !== "SITE" && (
-                  <Field label="Parent">
-                    <select name="parentId" defaultValue={selected} required>
-                      <option value="">Choisir…</option>
-                      <LocationOptions locations={locations} />
-                    </select>
-                  </Field>
-                )}
-              </>
+            <Field label="Type">
+              <select
+                value={kind}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setKind(next);
+                  if (
+                    next === "SITE" ||
+                    !allowedParents[next].includes(
+                      locations.find((l) => l.id === parentId)?.kind || "",
+                    )
+                  )
+                    setParentId("");
+                }}
+              >
+                {locationKinds
+                  .filter(
+                    (k) =>
+                      admin ||
+                      k !== "SITE" ||
+                      (editing && current?.kind === "SITE"),
+                  )
+                  .map((k) => (
+                    <option key={k} value={k}>
+                      {labels[k]}
+                    </option>
+                  ))}
+              </select>
+              <small>
+                Le type doit rester compatible avec les enfants et les
+                associations existants.
+              </small>
+            </Field>
+            {kind !== "SITE" && (
+              <Field label="Parent">
+                <select
+                  value={parentId}
+                  onChange={(e) => setParentId(e.target.value)}
+                  required
+                >
+                  <option value="">Choisir…</option>
+                  <LocationOptions
+                    locations={locations.filter(
+                      (l) =>
+                        allowedParents[kind].includes(l.kind) &&
+                        (!editing ||
+                          !descendantIds(locations, current!.id).has(l.id)),
+                    )}
+                  />
+                </select>
+              </Field>
+            )}
+            {admin && (
+              <Field label="Client du site / bâtiment">
+                <select
+                  value={clientChoice}
+                  onChange={(e) => setClientChoice(e.target.value)}
+                >
+                  <option value="inherit">
+                    {kind === "SITE"
+                      ? "Sans client (site)"
+                      : "Hériter du parent"}
+                  </option>
+                  <option value="none">Sans client · références libres</option>
+                  {clients
+                    .filter((c) => c.active || c.id === current?.clientId)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} · {c.prefix}
+                      </option>
+                    ))}
+                </select>
+                <small>
+                  Modifiable à tout moment. Ce choix s’applique aux futurs
+                  documents et aux descendants qui héritent. Les documents
+                  existants conservent leur client et leur référence ; leur
+                  fiche permet de les réaffecter explicitement.
+                </small>
+              </Field>
             )}
             <Field label="Description">
               <textarea
@@ -1115,13 +1158,21 @@ function DocumentForm({
 }) {
   const [busy, setBusy] = useState(false),
     [locationId, setLocationId] = useState(initial?.locationId || ""),
-    [reference, setReference] = useState(initial?.reference || "");
-  const chosenLocation = locations.find((l) => l.id === locationId),
-    site = locations.find((l) => l.id === chosenLocation?.siteId),
-    client = clients.find(
-      (c) => c.id === (initial ? initial.clientId : site?.clientId),
+    [reference, setReference] = useState(initial?.reference || ""),
+    [documentClient, setDocumentClient] = useState<string>(
+      initial ? initial.clientId || "none" : "auto",
     ),
-    managed = initial ? !!initial.clientId : !!client;
+    [regenerate, setRegenerate] = useState(false);
+  const clientId =
+    documentClient === "auto"
+      ? effectiveClient(locations, locationId).clientId
+      : documentClient === "none"
+        ? null
+        : documentClient;
+  const client = clients.find((c) => c.id === clientId),
+    managed = !!clientId,
+    newReference =
+      managed && (!initial || clientId !== initial.clientId || regenerate);
   return (
     <form
       onSubmit={async (e) => {
@@ -1132,6 +1183,13 @@ function DocumentForm({
         try {
           await onSubmit({
             ...data,
+            regenerateReference: regenerate && managed,
+            ...(documentClient === "auto"
+              ? { useLocationClient: true }
+              : {
+                  useLocationClient: false,
+                  clientId: documentClient === "none" ? null : documentClient,
+                }),
             tags: String(data.tags)
               .split(",")
               .map((t) => t.trim())
@@ -1155,7 +1213,7 @@ function DocumentForm({
         <Field label="Référence">
           <input
             name="reference"
-            value={managed && !initial ? "" : reference}
+            value={newReference ? "" : reference}
             onChange={(e) => setReference(e.target.value)}
             readOnly={managed}
             placeholder={
@@ -1168,9 +1226,9 @@ function DocumentForm({
           />
           {managed && (
             <small>
-              {initial
-                ? "Référence client conservée et verrouillée."
-                : `Attribuée automatiquement à l’enregistrement pour ${client?.name}.`}
+              {newReference
+                ? `Nouvelle référence attribuée pour ${client?.name}. ${initial ? "L’ancienne référence reste dans l’historique." : ""}`
+                : "Référence conservée. Un changement de client permet de générer une nouvelle référence."}
             </small>
           )}
         </Field>
@@ -1185,6 +1243,38 @@ function DocumentForm({
             <LocationOptions locations={locations} />
           </select>
         </Field>
+        <Field label="Client du document">
+          <select
+            value={documentClient}
+            onChange={(e) => setDocumentClient(e.target.value)}
+          >
+            <option value="auto">Utiliser le client de la localisation</option>
+            <option value="none">Sans client · référence libre</option>
+            {clients
+              .filter((c) => c.active || c.id === initial?.clientId)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} · {c.prefix}
+                </option>
+              ))}
+          </select>
+          <small>
+            {initial
+              ? "Changer le client attribue une nouvelle référence automatiquement et conserve l’ancienne dans l’historique."
+              : "Le choix automatique suit le client du bâtiment ou du parent le plus proche."}
+          </small>
+        </Field>
+        {initial && managed && (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={regenerate}
+              onChange={(e) => setRegenerate(e.target.checked)}
+            />
+            Attribuer une nouvelle référence (ancienne conservée dans
+            l’historique)
+          </label>
+        )}
         <Field label="Catégorie">
           <input
             name="category"
@@ -1658,6 +1748,22 @@ function DocumentDetail({
             </div>
           ))}
         </dl>
+        {!!doc.referenceHistory?.length && (
+          <details>
+            <summary>
+              Historique des références ({doc.referenceHistory.length})
+            </summary>
+            <ul>
+              {doc.referenceHistory.map((entry: any, index: number) => (
+                <li key={index}>
+                  <strong>{entry.reference}</strong> ·{" "}
+                  {entry.clientName || "Sans client"} ·{" "}
+                  {formatDate(entry.changedAt)} · {entry.actor}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </section>
       <section className="card">
         <div className="section-head">

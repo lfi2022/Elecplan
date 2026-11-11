@@ -5,7 +5,7 @@ import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import serveStatic from "@fastify/static";
-import { PrismaClient, type User } from "@prisma/client";
+import { PrismaClient, type User, type Prisma } from "@prisma/client";
 import { z, ZodError } from "zod";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, stat } from "node:fs/promises";
@@ -31,6 +31,12 @@ import {
   assertClientForSite,
   allocateReference,
 } from "./clients.js";
+import { editLocation } from "./hierarchy.js";
+import {
+  effectiveClient,
+  allowedParents,
+  descendantIds,
+} from "../shared/hierarchy.js";
 z.config(z.locales.fr());
 
 declare module "fastify" {
@@ -81,6 +87,7 @@ const locationSchema = z
     description: z.string().max(5000).default(""),
     parentId: idSchema.nullable().default(null),
     clientId: idSchema.nullable().default(null),
+    inheritClient: z.boolean().default(true),
   })
   .strict();
 const documentSchema = z
@@ -89,6 +96,9 @@ const documentSchema = z
     reference: z.string().trim().max(200).default(""),
     description: z.string().max(5000).default(""),
     locationId: idSchema,
+    clientId: idSchema.nullable().optional(),
+    useLocationClient: z.boolean().optional(),
+    regenerateReference: z.boolean().optional(),
     category: text.default("Plan électrique"),
     tags: z.array(z.string().trim().min(1).max(50)).max(30).default([]),
     buildingType: z.string().max(100).default(""),
@@ -297,7 +307,11 @@ export async function buildApp(
     });
     if (!document) fail(404, "Document introuvable.");
     assertSite(r, document.siteId);
-    return { ...document, tags: JSON.parse(document.tags) };
+    return {
+      ...document,
+      tags: JSON.parse(document.tags),
+      referenceHistory: JSON.parse(document.referenceHistory),
+    };
   };
   async function installationId() {
     return (
@@ -482,63 +496,36 @@ export async function buildApp(
     if (input.kind === "SITE") {
       if (input.parentId) fail(400, "Un site ne peut avoir de parent.");
       admin(req);
-      await assertClientForSite(db, input.clientId);
     } else {
-      if (input.clientId)
-        fail(
-          400,
-          "Le client se rattache au site, pas à un niveau intermédiaire.",
-        );
       if (!input.parentId) fail(400, "Parent requis.");
       const parent = await getLocation(req, input.parentId);
-      const allowed: Record<string, string[]> = {
-        BUILDING: ["SITE"],
-        FLOOR: ["BUILDING"],
-        ZONE: ["FLOOR", "BUILDING"],
-        ROOM: ["ZONE", "FLOOR"],
-        PANEL: ["ROOM", "ZONE", "FLOOR", "BUILDING"],
-        EQUIPMENT: ["PANEL", "ROOM", "ZONE", "FLOOR", "BUILDING"],
-      };
-      if (!allowed[input.kind].includes(parent.kind))
+      if (!allowedParents[input.kind].includes(parent.kind))
         fail(400, "Niveau parent incompatible.");
       siteId = parent.siteId;
     }
-    const result = await db.location.create({ data: { ...input, id, siteId } });
+    if (input.clientId || !input.inheritClient) {
+      admin(req);
+      await assertClientForSite(db, input.clientId);
+    }
+    const result = await db.location.create({
+      data: {
+        ...input,
+        inheritClient: input.clientId ? false : input.inheritClient,
+        id,
+        siteId,
+      },
+    });
     await audit(req, "location.create", id, siteId);
     return reply.code(201).send(result);
   });
   app.patch("/api/locations/:id", async (req) => {
     requirePermission(req, "locations:write");
-    const old = await getLocation(req, (req.params as { id: string }).id);
-    const input = z
-      .object({
-        name: text,
-        reference: z.string().max(100),
-        description: z.string().max(5000),
-        clientId: idSchema.nullable().optional(),
-      })
-      .strict()
-      .parse(req.body);
-    if (input.clientId !== undefined && input.clientId !== old.clientId) {
-      if (old.kind !== "SITE")
-        fail(400, "Le client se rattache uniquement au site.");
-      admin(req);
-      await assertClientForSite(db, input.clientId);
-      if (
-        await db.document.count({
-          where: { siteId: old.id, clientId: { not: null } },
-        })
-      )
-        fail(
-          409,
-          "Ce site contient déjà des références client : son rattachement est verrouillé.",
-        );
-    }
-    const result = await db.location.update({
-      where: { id: old.id },
-      data: input,
-    });
-    await audit(req, "location.update", old.id, old.siteId);
+    const result = await editLocation(
+      db,
+      req,
+      (req.params as { id: string }).id,
+    );
+    await audit(req, "location.update", result.id, result.siteId);
     return result;
   });
   app.delete("/api/locations/:id", async (req) => {
@@ -566,6 +553,7 @@ export async function buildApp(
         siteId: idSchema.optional(),
         clientId: idSchema.optional(),
         locationId: idSchema.optional(),
+        recursive: z.enum(["0", "1"]).default("1"),
         category: z.string().max(200).optional(),
         status: z.string().max(100).optional(),
         tag: z.string().max(50).optional(),
@@ -578,6 +566,20 @@ export async function buildApp(
       })
       .parse(req.query);
     if (q.siteId) assertSite(req, q.siteId);
+    const locationIds = q.locationId
+      ? q.recursive === "0"
+        ? [(await getLocation(req, q.locationId)).id]
+        : [
+            ...descendantIds(
+              await db.location.findMany({
+                where: {
+                  siteId: (await getLocation(req, q.locationId)).siteId,
+                },
+              }),
+              q.locationId,
+            ),
+          ]
+      : null;
     const terms = q.q?.match(/[\p{L}\p{N}_]+/gu) || [];
     const ftsQuery = terms.map((term) => `"${term}"*`).join(" AND ");
     const textMatches = ftsQuery
@@ -590,7 +592,7 @@ export async function buildApp(
         siteFilter(req),
         q.siteId ? { siteId: q.siteId } : {},
         q.clientId ? { clientId: q.clientId } : {},
-        q.locationId ? { locationId: q.locationId } : {},
+        locationIds ? { locationId: { in: locationIds } } : {},
         q.category ? { category: q.category } : {},
         q.status ? { status: q.status } : {},
         q.installationType ? { installationType: q.installationType } : {},
@@ -607,6 +609,7 @@ export async function buildApp(
               OR: [
                 { name: { contains: q.q } },
                 { reference: { contains: q.q } },
+                { referenceHistory: { contains: q.q } },
                 { description: { contains: q.q } },
                 { tags: { contains: q.q } },
                 { id: { in: textMatches.map((item) => item.documentId) } },
@@ -656,37 +659,86 @@ export async function buildApp(
       )
         fail(400, "Équipement incompatible avec le site du document.");
     }
-    const { equipmentIds, tags, ...fields } = input;
+    const {
+      equipmentIds,
+      tags,
+      clientId,
+      useLocationClient,
+      regenerateReference,
+      ...fields
+    } = input;
     return {
       ...fields,
       tags: JSON.stringify(tags),
       siteId: location.siteId,
       equipmentIds,
+      requestedClientId: clientId,
+      useLocationClient,
+      regenerateReference,
     };
+  }
+  async function checkDocumentClient(
+    req: FastifyRequest,
+    clientId: string | null,
+    tx: Prisma.TransactionClient,
+  ) {
+    if (!clientId) return;
+    const client = await tx.client.findFirst({
+      where: {
+        id: clientId,
+        ...(req.user.role === "ADMIN"
+          ? {}
+          : {
+              OR: [
+                { sites: { some: { siteId: { in: req.siteIds } } } },
+                { documents: { some: { siteId: { in: req.siteIds } } } },
+              ],
+            }),
+      },
+      select: { id: true, active: true },
+    });
+    if (!client) fail(404, "Client introuvable ou inaccessible.");
+    if (!client.active) fail(409, "Ce client est désactivé.");
   }
   app.post("/api/documents", async (req, reply) => {
     requirePermission(req, "documents:write");
-    const { equipmentIds, ...data } = await validateDocument(
-      req,
-      documentSchema.parse(req.body),
-    );
+    const {
+      equipmentIds,
+      requestedClientId,
+      useLocationClient,
+      regenerateReference,
+      ...data
+    } = await validateDocument(req, documentSchema.parse(req.body));
     const result = await db.$transaction(async (tx) => {
-      const site = await tx.location.findUniqueOrThrow({
-        where: { id: data.siteId },
+      const nodes = await tx.location.findMany({
+        where: { siteId: data.siteId },
       });
-      if (!site.clientId && !data.reference)
-        fail(400, "Une référence est requise pour un site sans client.");
+      const clientId =
+        useLocationClient || requestedClientId === undefined
+          ? effectiveClient(nodes, data.locationId).clientId
+          : requestedClientId;
+      await checkDocumentClient(req, clientId, tx);
+      if (!clientId && !data.reference)
+        fail(400, "Une référence libre est requise sans client.");
       if (
-        !site.clientId &&
-        (await tx.document.findFirst({
+        !clientId &&
+        ((await tx.document.findFirst({
           where: { reference: data.reference },
           select: { id: true },
-        }))
+        })) ||
+          (await tx.referenceReservation.findUnique({
+            where: { reference: data.reference },
+          })))
       )
-        fail(409, "Cette référence documentaire existe déjà.");
-      const generated = site.clientId
-        ? await allocateReference(tx, site.clientId)
-        : {};
+        fail(
+          409,
+          "Cette référence documentaire existe déjà ou a déjà été attribuée.",
+        );
+      const generated = clientId ? await allocateReference(tx, clientId) : {};
+      if (!clientId)
+        await tx.referenceReservation.create({
+          data: { reference: data.reference },
+        });
       return tx.document.create({
         data: {
           ...data,
@@ -703,35 +755,86 @@ export async function buildApp(
   app.put("/api/documents/:id", async (req) => {
     requirePermission(req, "documents:write");
     const old = await getDocument(req, (req.params as { id: string }).id);
-    const { equipmentIds, ...data } = await validateDocument(
-      req,
-      documentSchema.parse(req.body),
-    );
-    if (data.siteId !== old.siteId)
-      fail(400, "Déplacement intersites interdit.");
-    if (old.clientId && data.reference !== old.reference)
-      fail(
-        400,
-        "La référence client est générée automatiquement et ne peut pas être modifiée.",
-      );
-    if (!data.reference) fail(400, "La référence ne peut pas être vide.");
-    if (
-      data.reference !== old.reference &&
-      (await db.document.findFirst({
-        where: { reference: data.reference, id: { not: old.id } },
-        select: { id: true },
-      }))
-    )
-      fail(409, "Cette référence documentaire existe déjà.");
-    const result = await db.document.update({
-      where: { id: old.id },
-      data: {
-        ...data,
-        equipment: {
-          deleteMany: {},
-          create: equipmentIds.map((equipmentId) => ({ equipmentId })),
+    const {
+      equipmentIds,
+      requestedClientId,
+      useLocationClient,
+      regenerateReference,
+      ...data
+    } = await validateDocument(req, documentSchema.parse(req.body));
+    if (data.siteId !== old.siteId) admin(req);
+    const result = await db.$transaction(async (tx) => {
+      const nodes = await tx.location.findMany({
+        where: { siteId: data.siteId },
+      });
+      const clientId = useLocationClient
+        ? effectiveClient(nodes, data.locationId).clientId
+        : requestedClientId === undefined
+          ? old.clientId
+          : requestedClientId;
+      const clientChanged = clientId !== old.clientId;
+      if (clientChanged || regenerateReference)
+        await checkDocumentClient(req, clientId, tx);
+      let reference = data.reference,
+        clientNumber = old.clientNumber;
+      const generatedReference =
+        !!clientId && (clientChanged || regenerateReference === true);
+      if (generatedReference) {
+        const generated = await allocateReference(tx, clientId!);
+        reference = generated.reference;
+        clientNumber = generated.clientNumber;
+      } else if (old.clientId && clientId && reference !== old.reference)
+        fail(
+          400,
+          "Pour changer une référence automatique, sélectionnez un autre client.",
+        );
+      if (!clientId) clientNumber = null;
+      if (!reference) fail(400, "La référence ne peut pas être vide.");
+      if (
+        reference !== old.reference &&
+        !generatedReference &&
+        ((await tx.document.findFirst({
+          where: { reference, id: { not: old.id } },
+          select: { id: true },
+        })) ||
+          (await tx.referenceReservation.findUnique({ where: { reference } })))
+      )
+        fail(409, "Cette référence existe déjà ou a déjà été attribuée.");
+      const history = old.referenceHistory as Array<unknown>;
+      const changed = clientChanged || reference !== old.reference;
+      if (changed) {
+        history.push({
+          reference: old.reference,
+          clientId: old.clientId,
+          clientName: old.client?.name || null,
+          changedAt: new Date().toISOString(),
+          actor: req.user.email,
+        });
+        await tx.referenceReservation.upsert({
+          where: { reference: old.reference },
+          create: { reference: old.reference, clientId: old.clientId },
+          update: {},
+        });
+      }
+      await tx.referenceReservation.upsert({
+        where: { reference },
+        create: { reference, clientId },
+        update: {},
+      });
+      return tx.document.update({
+        where: { id: old.id },
+        data: {
+          ...data,
+          reference,
+          clientId,
+          clientNumber,
+          referenceHistory: JSON.stringify(history),
+          equipment: {
+            deleteMany: {},
+            create: equipmentIds.map((equipmentId) => ({ equipmentId })),
+          },
         },
-      },
+      });
     });
     await audit(req, "document.update", old.id, old.siteId);
     return result;

@@ -44,6 +44,7 @@ model Location {
   siteId String
   clientId String?
   client Client? @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  inheritClient Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users UserSite[]
@@ -58,6 +59,7 @@ model Document {
   clientId String?
   client Client? @relation(fields: [clientId], references: [id], onDelete: Restrict)
   clientNumber Int?
+  referenceHistory String @default("[]")
   description String @default("")
   locationId String
   location Location @relation("DocumentLocation", fields: [locationId], references: [id], onDelete: Restrict)
@@ -91,6 +93,11 @@ model Client {
   updatedAt DateTime @updatedAt
   sites Location[]
   documents Document[]
+}
+model ReferenceReservation {
+  reference String @id
+  clientId String?
+  createdAt DateTime @default(now())
 }
 model DocumentEquipment {
   documentId String

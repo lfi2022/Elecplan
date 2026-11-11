@@ -138,13 +138,65 @@ test("clients et patrimoine : création, rattachement, référence automatique e
   await page.getByRole("button", { name: "◇ Clients", exact: true }).click();
   await page.getByRole("button", { name: "Modifier", exact: true }).click();
   dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Préfixe documentaire")).toHaveAttribute(
-    "readonly",
-    "",
-  );
+  await expect(dialog.getByLabel("Préfixe documentaire")).toBeEditable();
   await dialog.getByRole("button", { name: "Fermer", exact: true }).click();
   await page.screenshot({
     path: "artifacts/electroplan-clients.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "+ Nouveau client" }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Nom du client").fill("Second client");
+  await dialog.getByLabel("Code client", { exact: true }).fill("SECOND");
+  await dialog.getByLabel("Préfixe documentaire").fill("SECOND");
+  await dialog.getByRole("button", { name: "Enregistrer le client" }).click();
+  await page.getByRole("button", { name: "▦ Patrimoine", exact: true }).click();
+  await page.getByRole("button", { name: /Bâtiment Atelier/ }).click();
+  await page.getByRole("button", { name: "Modifier", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Type", { exact: true })).toBeEnabled();
+  await expect(dialog.getByLabel("Parent", { exact: true })).toBeEnabled();
+  await dialog.getByLabel("Référence", { exact: true }).fill("BAT-EDIT");
+  await dialog
+    .getByLabel("Client du site / bâtiment")
+    .selectOption({ label: "Second client · SECOND" });
+  await dialog
+    .getByRole("button", { name: "Enregistrer", exact: true })
+    .click();
+  await expect(page.getByText("Second client", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "▤ Documents", exact: true }).click();
+  await page.getByRole("button", { name: "+ Nouveau document" }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Nom du document").fill("Plan sous nouveau client");
+  await dialog
+    .getByLabel("Localisation", { exact: true })
+    .selectOption(panel.id);
+  await dialog.getByRole("button", { name: "Enregistrer la fiche" }).click();
+  await expect(page.getByText("SECOND-00001", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "← Retour aux documents" }).click();
+  await page
+    .getByRole("cell", { name: /Plan automatique Atelier ATL-ELEC-00001/ })
+    .click();
+  await page.getByRole("button", { name: "Modifier la fiche" }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Client du document").selectOption("auto");
+  await dialog.getByRole("button", { name: "Enregistrer la fiche" }).click();
+  await expect(page.getByText("SECOND-00002", { exact: true })).toBeVisible();
+  await page
+    .getByText("Historique des références (1)", { exact: true })
+    .click();
+  await expect(page.getByText("ATL-ELEC-00001", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Modifier la fiche" }).click();
+  dialog = page.getByRole("dialog");
+  await dialog
+    .getByLabel(
+      "Attribuer une nouvelle référence (ancienne conservée dans l’historique)",
+    )
+    .check();
+  await dialog.getByRole("button", { name: "Enregistrer la fiche" }).click();
+  await expect(page.getByText("SECOND-00003", { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: "artifacts/electroplan-edition-reference.png",
     fullPage: true,
   });
   expect(errors).toEqual([]);

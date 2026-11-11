@@ -80,14 +80,18 @@ Le service tourne sous le compte système non privilégié `electroplan`, avec u
 ### Clients et références documentaires
 
 1. Un administrateur crée le client dans **Clients**, avec un code (`ACME`) et un préfixe unique (`ACME-ELEC`).
-2. Dans **Patrimoine**, rattacher un ou plusieurs sites à ce client, en création ou en modification du site.
-3. Lorsqu’un document est créé dans ce site ou l’un de ses bâtiments, locaux ou équipements, la référence est attribuée côté serveur : `ACME-ELEC-00001`, `ACME-ELEC-00002`, etc. Le compteur est commun aux sites du même client et fait partie des sauvegardes.
+2. Dans **Patrimoine → Modifier**, rattacher un site, un bâtiment ou tout autre élément à ce client. Choisir **Hériter du parent** pour reprendre le client du parent le plus proche, ou **Sans client** pour interrompre cet héritage.
+3. Lorsqu’un document est créé, le choix **Utiliser le client de la localisation** applique ce rattachement. Un client peut également être choisi explicitement sur la fiche. La référence est attribuée côté serveur : `ACME-ELEC-00001`, `ACME-ELEC-00002`, etc. Le compteur est commun aux éléments du même client et fait partie des sauvegardes.
 
-Le compteur et la création de la fiche sont enregistrés dans une même transaction SQLite. Les références libres déjà présentes sont évitées ; un numéro n’est pas réutilisé après suppression normale d’un document. Le préfixe est verrouillé dès la première référence générée. La référence d’un document client n’est plus modifiable ; le rattachement d’un site ne peut plus changer lorsqu’il contient des références client.
+Le compteur, la réservation de référence et la création de la fiche sont enregistrés dans une même transaction SQLite. Les références déjà attribuées sont réservées même après suppression d’un document. Le préfixe du client et le rattachement d’un site ou bâtiment peuvent être modifiés après création ; les anciennes références ne sont jamais réécrites par ces modifications.
+
+La fiche documentaire permet de changer de client ou de cocher **Attribuer une nouvelle référence**. Une nouvelle référence est alors générée, et l’ancienne est conservée avec l’ancien client, la date et l’auteur dans **Historique des références**. Les fichiers et leurs révisions restent associés à la même fiche. La recherche textuelle retrouve aussi les anciennes références.
+
+L’édition du patrimoine expose le nom, la référence, la description, le type, le parent et le client. Les déplacements entre sites sont réservés aux administrateurs et mettent à jour le site des descendants et de leurs documents dans une transaction. Les cycles, types incompatibles avec les enfants et déplacements séparant un document de ses équipements sont refusés. La transformation d’un site en élément d’un autre site retire les anciennes autorisations de ce site ; aucune autorisation sur le site cible n’est accordée implicitement.
 
 Les documents antérieurs conservent exactement leurs références et restent des références historiques, sans modification automatique lors du rattachement du site. Les sites sans client continuent à utiliser une référence libre, requise et contrôlée contre les doublons à la création. La désactivation d’un client conserve ses données et interdit les nouvelles fiches sur ses sites ; les documents existants restent consultables et modifiables.
 
-La gestion des clients est réservée aux administrateurs. Les autres utilisateurs voient uniquement les identifiants et préfixes des clients de leurs sites autorisés, sans coordonnées privées ni compteurs globaux. Les droits d’accès aux documents restent déterminés par le site.
+La gestion des clients et des rattachements dans le patrimoine est réservée aux administrateurs. Les autres utilisateurs voient uniquement les identifiants et préfixes des clients rattachés à des éléments ou documents de leurs sites autorisés, sans coordonnées privées ni compteurs globaux. Un éditeur peut réaffecter un document aux clients auxquels il a accès. Les droits de lecture restent déterminés par le site.
 
 Dans **Patrimoine**, saisir plusieurs mots dans **Rechercher dans le patrimoine**, puis éventuellement choisir un type d’élément. La recherche porte uniquement sur les éléments accessibles à l’utilisateur ; les branches parentes restent visibles pour situer chaque résultat.
 
