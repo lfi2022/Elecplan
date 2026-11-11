@@ -18,6 +18,10 @@ jobs:
       - run: npm audit --audit-level=moderate
       - run: bash scripts/build-deb.sh
       - run: sudo bash scripts/linux-smoke.sh artifacts/electroplan_1.0.0_amd64.deb
+      - name: Verify installed application and PDF restore
+        run: |
+          sudo systemctl stop electroplan
+          sudo bash scripts/package-probe.sh
       - name: Service diagnostics on failure
         if: failure()
         run: sudo journalctl -u electroplan -n 150 --no-pager

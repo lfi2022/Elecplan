@@ -29,6 +29,7 @@ Les tests navigateur produisent `artifacts/electroplan-desktop.png` et `artifact
 - Unité contrôlée par `systemd-analyze verify`.
 - Exécution GitHub Actions sur Ubuntu 24.04 avec **systemd réel** : installation, démarrage du service, réponse `/api/health`, arrêt, sauvegarde et réinstallation réussis. [Exécution de référence](https://github.com/lfi2022/Elecplan/actions/runs/43005324010).
 - Le script de vérification inclut également le démarrage direct du programme installé et le chargement du frontend quand systemd n’est pas PID 1. L’environnement Docker de vérification coupe le réseau pendant cette phase.
+- Un parcours supplémentaire sur le programme installé vérifie, réseau coupé, la première configuration, la connexion, le patrimoine, l’import et la recherche d’un PDF, puis une sauvegarde et sa restauration. Le processus applicatif s’exécute sous le compte `electroplan`.
 
 La première exécution CI a mis en évidence une interrogation du port avant sa disponibilité. Le test attend maintenant la santé HTTP avec un délai borné avant de continuer.
 

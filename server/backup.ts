@@ -4,7 +4,6 @@ import {
   readFile,
   writeFile,
   readdir,
-  rename,
   rm,
   stat,
 } from "node:fs/promises";
@@ -140,8 +139,7 @@ export async function restoreBackup(db: PrismaClient, id: string) {
     for (const suffix of ["-wal", "-shm", "-journal"])
       await rm(databasePath + suffix, { force: true });
     await cp(path.join(dir, "electroplan.db"), databasePath);
-    await rename(config.filesDir, path.join(rollback, "old-files"));
-    await mkdir(config.filesDir, { mode: 0o700 });
+    await clearFiles();
     for (const key of Object.keys(manifest.hashes))
       if (key.startsWith("files/"))
         await cp(
@@ -156,7 +154,7 @@ export async function restoreBackup(db: PrismaClient, id: string) {
   } catch (error) {
     await db.$disconnect();
     await cp(path.join(rollback, "electroplan.db"), databasePath);
-    await rm(config.filesDir, { recursive: true, force: true });
+    await clearFiles();
     await cp(path.join(rollback, "files"), config.filesDir, {
       recursive: true,
     });
@@ -189,7 +187,12 @@ export async function recoverInterruptedRestore() {
   for (const suffix of ["-wal", "-shm", "-journal"])
     await rm(databasePath + suffix, { force: true });
   await cp(path.join(source, "electroplan.db"), databasePath);
-  await rm(config.filesDir, { recursive: true, force: true });
+  await clearFiles();
   await cp(path.join(source, "files"), config.filesDir, { recursive: true });
   await rm(marker);
+}
+async function clearFiles() {
+  await mkdir(config.filesDir, { recursive: true, mode: 0o700 });
+  for (const key of await readdir(config.filesDir))
+    await rm(path.join(config.filesDir, key), { recursive: true, force: true });
 }
